@@ -3,21 +3,27 @@ import type { NextRequest } from "next/server";
 
 import { AUTH_COOKIE_NAME, isAuthConfigured, verifySessionToken } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
-
-function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (!isAuthConfigured()) {
-    if (pathname === "/login") {
-      return NextResponse.next();
+  if (pathname === "/api/auth/login") {
+    return NextResponse.next();
+  }
+
+  if (pathname === "/login") {
+    if (isAuthConfigured()) {
+      const session = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+      const isAuthenticated = Boolean(
+        session && (await verifySessionToken(session)),
+      );
+      if (isAuthenticated) {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
     }
+    return NextResponse.next();
+  }
+
+  if (!isAuthConfigured()) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
@@ -25,13 +31,6 @@ export async function middleware(request: NextRequest) {
 
   const session = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = Boolean(session && (await verifySessionToken(session)));
-
-  if (isPublicPath(pathname)) {
-    if (pathname === "/login" && isAuthenticated) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-    return NextResponse.next();
-  }
 
   if (!isAuthenticated) {
     const loginUrl = new URL("/login", request.url);

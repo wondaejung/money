@@ -37,10 +37,18 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+      } | null;
 
       if (!response.ok) {
-        setError(data.error ?? "로그인에 실패했습니다.");
+        setError(data?.error ?? "로그인에 실패했습니다.");
+        return;
+      }
+
+      if (!data?.ok) {
+        setError("로그인 응답이 올바르지 않습니다.");
         return;
       }
 
