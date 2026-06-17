@@ -1,0 +1,55 @@
+---
+description: KR/US stock dashboard product and implementation rules
+alwaysApply: true
+---
+
+# KR/US Stock Dashboard Rule
+
+## Product Goal
+- Build a personal stock dashboard focused on KR stocks with US stocks managed together.
+- Provide two core capabilities:
+  - Portfolio treemap/heatmap view with KR/US split or combined modes.
+  - Morning briefing that maps overnight US/global news to likely KR market themes and stocks.
+
+## Required Tech Direction
+- Frontend: Next.js App Router + TypeScript, Tailwind CSS, shadcn/ui.
+- Visualization: Recharts (preferred) or ApexCharts for treemap/heatmap.
+- State: Zustand for market toggle state ([ALL, KR, US]).
+- LLM Integration: OpenAI API or Anthropic API for US news -> KR theme mapping.
+
+## Critical Market Rules
+- Market color mapping must differ by market:
+  - KR: up = `text-red-500`, down = `text-blue-500`
+  - US: up = `text-emerald-500`, down = `text-rose-500`
+- UI must provide market filter via tabs/toggle with:
+  - 전체 (ALL)
+  - 한국 주식 (KR)
+  - 미국 주식 (US)
+
+## Core Feature Guidance
+
+### 1) Portfolio Heatmap
+- Use Recharts `<Treemap>` for portfolio visualization.
+- Tile size = holding value/weight.
+- Tile color = daily change percent.
+- Filtering behavior:
+  - KR tab: KR holdings only
+  - US tab: US holdings only
+  - ALL tab: combined KR+US portfolio with FX-aware weighting
+
+### 2) Morning Briefing
+- Input: overnight US market close + key global issues.
+- LLM task: analyze likely impact on KR opening themes/stocks.
+- UI sections:
+  - US market summary (major indices + top 3 overnight issues)
+  - KR theme forecast list with explicit mapping examples:
+    - US semiconductor strength -> KR semiconductor supply-chain focus
+    - US healthcare weakness -> caution on KR biotech profit-taking
+
+## Implementation Principles
+- Enforce strict TypeScript models for all entities.
+  - Include market typing as `market: 'KR' | 'US'`.
+- Keep dashboard modules separated (for example):
+  - `components/dashboard/MarketToggle.tsx`
+  - `components/dashboard/ThemeMapper.tsx`
+- Build UI with mock data first, then integrate APIs.
