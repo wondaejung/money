@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { kv } from "@vercel/kv";
-
 import { AUTH_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import {
+  getPortfolioFromStore,
+  isPortfolioStoreConfigured,
+  setPortfolioInStore,
+} from "@/lib/portfolio-kv";
 import type { UserPosition } from "@/types/portfolio";
-
-function isKvConfigured(): boolean {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-}
 
 async function getAuthedEmail(): Promise<string | null> {
   const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value;
@@ -23,7 +22,7 @@ export async function GET() {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
-  if (!isKvConfigured()) {
+  if (!isPortfolioStoreConfigured()) {
     return NextResponse.json(
       { error: "서버 포트폴리오 저장소가 설정되지 않았습니다." },
       { status: 501 },
@@ -31,7 +30,8 @@ export async function GET() {
   }
 
   const key = `portfolio:${email}`;
-  const positions = (await kv.get<UserPosition[]>(key)) ?? [];
+  const positions =
+    (await getPortfolioFromStore<UserPosition[]>(key)) ?? [];
   return NextResponse.json({ positions });
 }
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
-  if (!isKvConfigured()) {
+  if (!isPortfolioStoreConfigured()) {
     return NextResponse.json(
       { error: "서버 포트폴리오 저장소가 설정되지 않았습니다." },
       { status: 501 },
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   }
 
   const key = `portfolio:${email}`;
-  await kv.set(key, positions);
+  await setPortfolioInStore(key, positions);
 
   return NextResponse.json({ ok: true });
 }
