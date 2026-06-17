@@ -1,11 +1,10 @@
 import { Dashboard } from "@/components/dashboard/Dashboard";
-import { AppNav } from "@/components/layout/AppNav";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background">
-      <AppNav current="dashboard" />
+    <AppLayout current="dashboard" title="히트맵">
       <Dashboard />
-    </main>
+    </AppLayout>
   );
 }

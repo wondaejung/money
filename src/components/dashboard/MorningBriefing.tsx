@@ -33,7 +33,7 @@ export function MorningBriefing() {
   const providerLabel = llmProvider ? PROVIDER_LABEL[llmProvider] : null;
 
   return (
-    <section className="space-y-4">
+    <section id="briefing" className="scroll-mt-20 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">모닝 브리핑</h2>
@@ -60,7 +60,7 @@ export function MorningBriefing() {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs"
+            className="min-h-11 px-3 text-xs md:min-h-8"
             onClick={() => void refresh()}
             disabled={loading}
           >

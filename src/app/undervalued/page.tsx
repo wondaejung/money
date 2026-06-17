@@ -1,11 +1,10 @@
 import { UndervaluedValuePicks } from "@/components/undervalued/UndervaluedValuePicks";
-import { AppNav } from "@/components/layout/AppNav";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function UndervaluedPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <AppNav current="undervalued" />
+    <AppLayout current="undervalued" title="저평가주">
       <UndervaluedValuePicks />
-    </main>
+    </AppLayout>
   );
 }

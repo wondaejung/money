@@ -6,6 +6,7 @@ import { ResponsiveContainer, Treemap } from "recharts";
 import Link from "next/link";
 
 import { TreemapCell } from "@/components/dashboard/TreemapCell";
+import { PortfolioHeatmapMobile } from "@/components/dashboard/PortfolioHeatmapMobile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { usePortfolio } from "@/hooks/use-portfolio";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePortfolioHydrated } from "@/hooks/use-portfolio-hydrated";
 import {
   formatChangePercent,
@@ -47,6 +49,7 @@ function formatFetchedAt(iso: string | null): string {
 
 export function PortfolioHeatmap() {
   const [chartReady, setChartReady] = useState(false);
+  const isMobile = useIsMobile();
   const marketFilter = useMarketStore((state) => state.marketFilter);
   const hydrated = usePortfolioHydrated();
   const positions = usePortfolioStore((state) => state.positions);
@@ -97,7 +100,7 @@ export function PortfolioHeatmap() {
 
         {loading && holdings.length === 0 && positions.length === 0 ? (
           <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
@@ -109,17 +112,17 @@ export function PortfolioHeatmap() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
+            <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
+              <div className="min-w-[45%]">
                 <p className="text-sm text-muted-foreground">총 평가금액</p>
-                <p className="text-2xl font-semibold">
+                <p className="text-xl font-semibold sm:text-2xl">
                   {formatKrw(summary.totalValueKrw)}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="min-w-[45%] text-right">
                 <p className="text-sm text-muted-foreground">세후·수수료 총 손익</p>
                 <p
-                  className={`text-2xl font-semibold ${getChangeTextClass(summaryMarket, summary.totalGainAfterTaxKrw)}`}
+                  className={`text-xl font-semibold sm:text-2xl ${getChangeTextClass(summaryMarket, summary.totalGainAfterTaxKrw)}`}
                 >
                   {summary.totalGainAfterTaxKrw >= 0 ? "+" : ""}
                   {formatKrw(summary.totalGainAfterTaxKrw)}
@@ -129,30 +132,34 @@ export function PortfolioHeatmap() {
                   {formatKrw(summary.totalGainPreTaxKrw)}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="min-w-[45%] text-right sm:text-left">
                 <p className="text-sm text-muted-foreground">예상 세금·수수료</p>
-                <p className="text-xl font-semibold">
+                <p className="text-lg font-semibold sm:text-xl">
                   {formatKrw(summary.totalTaxKrw + summary.totalCommissionKrw)}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  세금 {formatKrw(summary.totalTaxKrw)} · 수수료{" "}
-                  {formatKrw(summary.totalCommissionKrw)}
-                </p>
               </div>
-              <div className="text-right">
+              <div className="min-w-[45%] text-right">
                 <p className="text-sm text-muted-foreground">가중 평균 수익률</p>
                 <p
-                  className={`text-xl font-semibold ${getChangeTextClass(summaryMarket, summary.weightedGainPercent)}`}
+                  className={`text-lg font-semibold sm:text-xl ${getChangeTextClass(summaryMarket, summary.weightedGainPercent)}`}
                 >
                   {formatChangePercent(summary.weightedGainPercent)}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="min-w-[45%] text-right sm:text-left">
                 <p className="text-sm text-muted-foreground">보유 종목</p>
-                <p className="text-xl font-semibold">{summary.count}개</p>
+                <p className="text-lg font-semibold sm:text-xl">{summary.count}개</p>
               </div>
             </div>
 
+            {isMobile ? (
+              <PortfolioHeatmapMobile
+                data={treemapData}
+                totalValueKrw={summary.totalValueKrw}
+                positionsCount={positions.length}
+                hydrated={hydrated}
+              />
+            ) : (
             <div className="h-[360px] w-full min-w-0">
               {treemapData.length > 0 && chartReady ? (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -175,7 +182,7 @@ export function PortfolioHeatmap() {
                   {positions.length === 0 && (
                     <Link
                       href="/portfolio"
-                      className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted"
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium hover:bg-muted"
                     >
                       내 포트폴리오에서 종목 추가
                     </Link>
@@ -185,6 +192,7 @@ export function PortfolioHeatmap() {
                 <div className="h-full animate-pulse rounded-lg bg-muted" />
               )}
             </div>
+            )}
           </>
         )}
       </CardContent>

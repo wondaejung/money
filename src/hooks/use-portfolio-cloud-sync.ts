@@ -1,58 +1,104 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 import { usePortfolioStore } from "@/store/portfolio-store";
 import type { UserPosition } from "@/types/portfolio";
 
 const SAVE_DEBOUNCE_MS = 1200;
 
+function resolvePositions(
+  local: UserPosition[],
+  server: UserPosition[],
+): UserPosition[] {
+  if (server.length === 0) return local;
+  if (local.length === 0) return server;
+  return server.length >= local.length ? server : local;
+}
+
+async function fetchServerPositions(): Promise<UserPosition[] | null> {
+  const response = await fetch("/api/portfolio/saved", {
+    method: "GET",
+    credentials: "same-origin",
+  });
+
+  if (response.status === 401) return null;
+  if (!response.ok) return [];
+
+  const data = (await response.json()) as { positions?: UserPosition[] };
+  return Array.isArray(data.positions) ? data.positions : [];
+}
+
+async function saveServerPositions(positions: UserPosition[]): Promise<boolean> {
+  const response = await fetch("/api/portfolio/saved", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ positions }),
+  });
+  return response.ok;
+}
+
 export function usePortfolioCloudSync() {
+  const pathname = usePathname();
   const hasHydrated = usePortfolioStore((s) => s.hasHydrated);
 
-  const initializedRef = useRef(false);
+  const syncReadyRef = useRef(false);
   const lastSavedRef = useRef<string>("");
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!hasHydrated) return;
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    if (!hasHydrated || pathname === "/login") return;
 
-    const abort = new AbortController();
+    let cancelled = false;
+    syncReadyRef.current = false;
 
-    async function init() {
+    async function pullFromServer() {
       try {
-        const response = await fetch("/api/portfolio/saved", {
-          method: "GET",
-          credentials: "same-origin",
-          signal: abort.signal,
-        });
-        if (!response.ok) return;
+        const serverPositions = await fetchServerPositions();
 
-        const data = (await response.json()) as { positions?: UserPosition[] };
-        const serverPositions = Array.isArray(data.positions) ? data.positions : [];
+        if (cancelled) return;
 
-        const localPositions = usePortfolioStore.getState().positions;
-        if (localPositions.length === 0 && serverPositions.length > 0) {
-          usePortfolioStore.getState().replacePositions(serverPositions);
+        if (serverPositions === null) {
+          return;
         }
 
-        lastSavedRef.current = JSON.stringify(usePortfolioStore.getState().positions);
-      } catch {
-        // ignore
+        const localPositions = usePortfolioStore.getState().positions;
+        const merged = resolvePositions(localPositions, serverPositions);
+
+        if (JSON.stringify(merged) !== JSON.stringify(localPositions)) {
+          usePortfolioStore.getState().replacePositions(merged);
+        }
+
+        if (serverPositions.length === 0 && localPositions.length > 0) {
+          await saveServerPositions(localPositions);
+        }
+
+        lastSavedRef.current = JSON.stringify(
+          usePortfolioStore.getState().positions,
+        );
+      } finally {
+        if (!cancelled) {
+          syncReadyRef.current = true;
+        }
       }
     }
 
-    void init();
+    void pullFromServer();
 
-    return () => abort.abort();
-  }, [hasHydrated]);
+    return () => {
+      cancelled = true;
+      syncReadyRef.current = false;
+    };
+  }, [hasHydrated, pathname]);
 
   useEffect(() => {
-    if (!hasHydrated) return;
+    if (!hasHydrated || pathname === "/login") return;
 
     const unsubscribe = usePortfolioStore.subscribe((state) => {
+      if (!syncReadyRef.current) return;
+
       const serialized = JSON.stringify(state.positions);
       if (serialized === lastSavedRef.current) return;
 
@@ -61,18 +107,15 @@ export function usePortfolioCloudSync() {
       }
 
       saveTimerRef.current = window.setTimeout(() => {
-        void fetch("/api/portfolio/saved", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ positions: usePortfolioStore.getState().positions }),
-        }).then((res) => {
-          if (res.ok) {
-            lastSavedRef.current = JSON.stringify(
-              usePortfolioStore.getState().positions,
-            );
-          }
-        });
+        void saveServerPositions(usePortfolioStore.getState().positions).then(
+          (ok) => {
+            if (ok) {
+              lastSavedRef.current = JSON.stringify(
+                usePortfolioStore.getState().positions,
+              );
+            }
+          },
+        );
       }, SAVE_DEBOUNCE_MS);
     });
 
@@ -82,6 +125,5 @@ export function usePortfolioCloudSync() {
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [hasHydrated]);
+  }, [hasHydrated, pathname]);
 }
-

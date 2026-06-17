@@ -132,7 +132,7 @@ export function AfterHoursTopPredictions() {
       )}
 
       {loading && !snapshot ? (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="h-56 animate-pulse rounded-xl bg-muted" />
           ))}
@@ -160,7 +160,7 @@ export function AfterHoursTopPredictions() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {snapshot.picks.map((pick, index) => (
               <PickCard key={pick.symbol} pick={pick} rank={index + 1} />
             ))}

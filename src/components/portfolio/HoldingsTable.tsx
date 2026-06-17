@@ -190,7 +190,113 @@ export function HoldingsTable({
             등록된 종목이 없습니다. 위에서 종목을 추가하세요.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="space-y-3 md:hidden">
+              {displayRows.map((row) => {
+                if (row.kind === "pending") {
+                  const position = row.position;
+                  return (
+                    <div
+                      key={position.id}
+                      className="rounded-xl border bg-muted/20 p-4"
+                    >
+                      <div className="mb-3 flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{position.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {position.symbol} · {position.market}
+                          </p>
+                        </div>
+                        <Badge variant="outline">시세 로딩</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">매수가</p>
+                          <p className="font-mono">
+                            {formatPrice(position.purchasePrice, position.currency)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">수량</p>
+                          <p className="font-mono">{position.shares.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="mt-3 min-h-11 w-full text-destructive"
+                        onClick={() => removePosition(position.id)}
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  );
+                }
+
+                const holding = row.holding;
+                return (
+                  <div key={holding.id} className="rounded-xl border p-4">
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium">{holding.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {holding.symbol} · {holding.market}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono text-sm font-medium">
+                          {formatPrice(holding.currentPrice, holding.currency)}
+                        </p>
+                        <p
+                          className={`text-xs ${getChangeTextClass(holding.market, holding.changePercent)}`}
+                        >
+                          {formatChangePercent(holding.changePercent)}
+                        </p>
+                      </div>
+                    </div>
+                    <MiniSparkline
+                      data={holding.sparkline}
+                      market={holding.market}
+                    />
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">세후 손익</p>
+                        <p
+                          className={`font-mono font-medium ${getChangeTextClass(holding.market, holding.gainAfterTax)}`}
+                        >
+                          {holding.gainAfterTax >= 0 ? "+" : ""}
+                          {formatPrice(holding.gainAfterTax, holding.currency)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">원화 평가</p>
+                        <p className="font-mono font-medium">
+                          {formatKrw(holding.valueKrw)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">매수가</p>
+                        <p className="font-mono">
+                          {formatPrice(holding.purchasePrice, holding.currency)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">수량</p>
+                        <p className="font-mono">{holding.shares.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      className="mt-3 min-h-11 w-full text-destructive"
+                      onClick={() => removePosition(holding.id)}
+                    >
+                      삭제
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -347,7 +453,8 @@ export function HoldingsTable({
                 })}
               </TableBody>
             </Table>
-          </div>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

@@ -1,11 +1,10 @@
 import { ClosingBellPredictions } from "@/components/predictions/ClosingBellPredictions";
-import { AppNav } from "@/components/layout/AppNav";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function PredictionsPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <AppNav current="predictions" />
+    <AppLayout current="predictions" title="종가 베팅">
       <ClosingBellPredictions />
-    </main>
+    </AppLayout>
   );
 }

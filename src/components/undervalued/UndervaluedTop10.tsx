@@ -132,7 +132,7 @@ export function UndervaluedTop10() {
           setThemeFilter(value as UndervaluedThemeFilter)
         }
       >
-        <TabsList className="h-auto flex-wrap">
+        <TabsList className="h-auto w-full flex-wrap justify-start md:w-fit">
           {UNDERVALUED_THEME_FILTERS.map((filter) => (
             <TabsTrigger
               key={filter.value}
@@ -150,7 +150,7 @@ export function UndervaluedTop10() {
           해당 테마의 저평가 종목이 없습니다.
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filteredPicks.map((pick) => (
             <PickCard
               key={pick.id}

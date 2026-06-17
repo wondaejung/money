@@ -1,11 +1,10 @@
 import { PortfolioManager } from "@/components/portfolio/PortfolioManager";
-import { AppNav } from "@/components/layout/AppNav";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 export default function PortfolioPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <AppNav current="portfolio" />
+    <AppLayout current="portfolio" title="설정">
       <PortfolioManager />
-    </main>
+    </AppLayout>
   );
 }
