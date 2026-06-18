@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   BarChart3,
+  FileText,
   LayoutDashboard,
   Target,
   Wallet,
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 export type AppNavKey =
   | "dashboard"
   | "portfolio"
+  | "report"
   | "predictions"
   | "undervalued";
 
@@ -21,8 +23,8 @@ interface AppSidebarProps {
 const SIDEBAR_LINKS = [
   {
     href: "/",
-    label: "대시보드",
-    description: "히트맵 · 브리핑",
+    label: "포트폴리오",
+    description: "히트맵 · 마켓톤",
     icon: LayoutDashboard,
     key: "dashboard" as const,
   },
@@ -32,6 +34,13 @@ const SIDEBAR_LINKS = [
     description: "종목 관리",
     icon: Wallet,
     key: "portfolio" as const,
+  },
+  {
+    href: "/report",
+    label: "일일 보고서",
+    description: "국내 증시 요약",
+    icon: FileText,
+    key: "report" as const,
   },
   {
     href: "/predictions",

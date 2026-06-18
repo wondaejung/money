@@ -1,45 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  FileText,
   LayoutGrid,
-  Newspaper,
-  Settings,
-  TrendingDown,
+  Target,
+  Wallet,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const MOBILE_NAV = [
   { href: "/", label: "히트맵", icon: LayoutGrid, key: "heatmap" },
-  { href: "/#briefing", label: "브리핑", icon: Newspaper, key: "briefing" },
+  { href: "/report", label: "일일보고서", icon: FileText, key: "report" },
   { href: "/predictions", label: "종가베팅", icon: BarChart3, key: "predictions" },
-  { href: "/undervalued", label: "저평가", icon: TrendingDown, key: "undervalued" },
-  { href: "/portfolio", label: "설정", icon: Settings, key: "settings" },
+  { href: "/undervalued", label: "저평가", icon: Target, key: "undervalued" },
+  { href: "/portfolio", label: "포트폴리오", icon: Wallet, key: "portfolio" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === "/#briefing") {
-    return pathname === "/";
-  }
   if (href === "/") return pathname === "/";
   return pathname.startsWith(href);
 }
 
 export function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  function handleBriefingClick(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (pathname === "/") {
-      event.preventDefault();
-      document.getElementById("briefing")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-    router.push("/#briefing");
-  }
 
   return (
     <nav
@@ -56,7 +43,6 @@ export function BottomNav() {
             <Link
               key={item.key}
               href={item.href}
-              onClick={item.key === "briefing" ? handleBriefingClick : undefined}
               className={cn(
                 "flex min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 text-[9px] font-medium transition-colors sm:text-[10px]",
                 active

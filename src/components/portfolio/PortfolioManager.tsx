@@ -1,5 +1,6 @@
 "use client";
 
+import { MacroImpactAnalysis } from "@/components/dashboard/MacroImpactAnalysis";
 import { AddPositionForm } from "@/components/portfolio/AddPositionForm";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { LossHoldingsSummary } from "@/components/portfolio/LossHoldingsSummary";
@@ -39,6 +40,8 @@ export function PortfolioManager() {
           확인할 수 있습니다.
         </p>
       </header>
+
+      <MacroImpactAnalysis />
 
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">

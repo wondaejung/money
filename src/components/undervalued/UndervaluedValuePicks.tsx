@@ -1,3 +1,4 @@
+import { UndervaluedSectorFinder } from "@/components/dashboard/UndervaluedSectorFinder";
 import { AiCatalystAnalysis } from "@/components/undervalued/AiCatalystAnalysis";
 import { UndervaluedTop10 } from "@/components/undervalued/UndervaluedTop10";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +18,8 @@ export function UndervaluedValuePicks() {
           밸류 트랩을 걸러낸 뒤 반등 타이밍을 예측합니다.
         </p>
       </header>
+
+      <UndervaluedSectorFinder />
 
       <UndervaluedTop10 />
 
