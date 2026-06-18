@@ -487,6 +487,81 @@ export async function fetchNaverScannerQuotes(
   return results.filter((quote): quote is NaverScannerQuote => quote !== null);
 }
 
+export interface NaverIndustryStockCandidate {
+  ticker: string;
+  name: string;
+  marketCapKrw: number;
+}
+
+interface NaverIndustryStockRow {
+  itemCode?: string;
+  stockName?: string;
+  stockEndType?: string;
+  marketValueRaw?: string;
+}
+
+export async function fetchNaverIndustryStockCandidates(
+  industryCode: number,
+): Promise<NaverIndustryStockCandidate[]> {
+  const candidates: NaverIndustryStockCandidate[] = [];
+
+  for (let page = 1; page <= 3; page += 1) {
+    const url = `https://m.stock.naver.com/api/stocks/industry/${industryCode}?page=${page}&pageSize=50`;
+
+    try {
+      const response = await naverFetch(url);
+      if (!response.ok) break;
+
+      const data = (await response.json()) as {
+        stocks?: NaverIndustryStockRow[];
+      };
+
+      for (const row of data.stocks ?? []) {
+        if (row.stockEndType !== "stock" || !row.itemCode || !row.stockName) {
+          continue;
+        }
+
+        const marketCapKrw = Number(row.marketValueRaw ?? "0");
+        if (!Number.isFinite(marketCapKrw) || marketCapKrw <= 0) continue;
+
+        candidates.push({
+          ticker: row.itemCode.padStart(6, "0").slice(-6),
+          name: row.stockName,
+          marketCapKrw,
+        });
+      }
+    } catch {
+      break;
+    }
+  }
+
+  return candidates;
+}
+
+export async function fetchNaverThemeStockCandidates(
+  industryCodes: number[],
+  maxTickers: number,
+): Promise<NaverIndustryStockCandidate[]> {
+  const byTicker = new Map<string, NaverIndustryStockCandidate>();
+
+  const industryResults = await Promise.all(
+    industryCodes.map((code) => fetchNaverIndustryStockCandidates(code)),
+  );
+
+  for (const rows of industryResults) {
+    for (const row of rows) {
+      const existing = byTicker.get(row.ticker);
+      if (!existing || existing.marketCapKrw < row.marketCapKrw) {
+        byTicker.set(row.ticker, row);
+      }
+    }
+  }
+
+  return [...byTicker.values()]
+    .sort((a, b) => b.marketCapKrw - a.marketCapKrw)
+    .slice(0, maxTickers);
+}
+
 export async function fetchNaverAfterHoursQuotes(
   symbols: string[],
 ): Promise<NaverAfterHoursQuote[]> {

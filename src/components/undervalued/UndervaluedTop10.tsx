@@ -152,7 +152,7 @@ export function UndervaluedTop10() {
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">국내 저평가 TOP 10</h2>
         <p className="text-sm text-muted-foreground">
-          네이버 증권 시세·PER·PBR·ROE 기준 — 실시간 데이터만 표시합니다.
+          네이버 증권 업종별 시가총액 상위 종목을 PER·PBR·ROE로 스크리닝합니다.
         </p>
         {liveReady && fetchedLabel ? (
           <p className="text-xs text-muted-foreground">

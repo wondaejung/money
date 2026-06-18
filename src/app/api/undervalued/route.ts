@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { fetchLiveUndervaluedPicks } from "@/lib/undervalued-live";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const CACHE_TTL_MS = 60_000;
 
