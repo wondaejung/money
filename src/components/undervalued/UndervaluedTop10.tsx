@@ -11,7 +11,10 @@ import {
   ScoreProgress,
 } from "@/components/undervalued/ScoreProgress";
 import { useUndervaluedLive } from "@/hooks/use-undervalued-live";
-import { useUndervaluedStore } from "@/store/undervalued-store";
+import {
+  getDisplayedPicks,
+  useUndervaluedStore,
+} from "@/store/undervalued-store";
 import { UNDERVALUED_THEME_FILTERS } from "@/types/undervalued";
 import type { UndervaluedPick, UndervaluedThemeFilter } from "@/types/undervalued";
 
@@ -125,17 +128,15 @@ function PickCard({
 export function UndervaluedTop10() {
   const { loading, error, fetchedAt, liveReady, refresh } = useUndervaluedLive();
   const themeFilter = useUndervaluedStore((state) => state.themeFilter);
-  const picks = useUndervaluedStore((state) => state.picks);
+  const allPicks = useUndervaluedStore((state) => state.allPicks);
+  const picksByTheme = useUndervaluedStore((state) => state.picksByTheme);
   const selectedId = useUndervaluedStore((state) => state.selectedId);
   const setThemeFilter = useUndervaluedStore((state) => state.setThemeFilter);
   const selectPick = useUndervaluedStore((state) => state.selectPick);
 
-  const filteredPicks = useMemo(
-    () =>
-      themeFilter === "all"
-        ? picks
-        : picks.filter((pick) => pick.theme === themeFilter),
-    [picks, themeFilter],
+  const displayedPicks = useMemo(
+    () => getDisplayedPicks({ allPicks, picksByTheme }, themeFilter),
+    [allPicks, picksByTheme, themeFilter],
   );
 
   const fetchedLabel = fetchedAt
@@ -205,13 +206,13 @@ export function UndervaluedTop10() {
         <div className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
           네이버 증권에서 실시간 시세를 불러오는 중입니다…
         </div>
-      ) : filteredPicks.length === 0 ? (
+      ) : displayedPicks.length === 0 ? (
         <div className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
           해당 테마의 저평가 종목이 없습니다.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {filteredPicks.map((pick) => (
+          {displayedPicks.map((pick) => (
             <PickCard
               key={pick.id}
               pick={pick}

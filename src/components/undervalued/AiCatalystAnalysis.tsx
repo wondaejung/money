@@ -12,14 +12,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScoreProgress } from "@/components/undervalued/ScoreProgress";
-import { useUndervaluedStore } from "@/store/undervalued-store";
+import {
+  getAllStoredPicks,
+  useUndervaluedStore,
+} from "@/store/undervalued-store";
 
 export function AiCatalystAnalysis() {
-  const picks = useUndervaluedStore((state) => state.picks);
   const selectedId = useUndervaluedStore((state) => state.selectedId);
+  const picksByTheme = useUndervaluedStore((state) => state.picksByTheme);
   const selectedPick = useMemo(
-    () => picks.find((pick) => pick.id === selectedId) ?? null,
-    [picks, selectedId],
+    () =>
+      getAllStoredPicks(picksByTheme).find((pick) => pick.id === selectedId) ??
+      null,
+    [picksByTheme, selectedId],
   );
 
   if (!selectedPick) {

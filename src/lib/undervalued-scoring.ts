@@ -1,3 +1,25 @@
+import type { UndervaluedPick } from "@/types/undervalued";
+
+export function compareUndervaluedPicks(
+  a: UndervaluedPick,
+  b: UndervaluedPick,
+): number {
+  const aUndervalued = a.discountPercent > 0 ? 1 : 0;
+  const bUndervalued = b.discountPercent > 0 ? 1 : 0;
+  if (bUndervalued !== aUndervalued) return bUndervalued - aUndervalued;
+  if (b.undervaluedScore !== a.undervaluedScore) {
+    return b.undervaluedScore - a.undervaluedScore;
+  }
+  return b.discountPercent - a.discountPercent;
+}
+
+export function topUndervaluedPicks(
+  picks: UndervaluedPick[],
+  limit = 10,
+): UndervaluedPick[] {
+  return [...picks].sort(compareUndervaluedPicks).slice(0, limit);
+}
+
 export function recalculateDiscount(per: number, sectorAvgPer: number): number {
   if (sectorAvgPer <= 0 || per <= 0) return 0;
   return Math.round((1 - per / sectorAvgPer) * 100);

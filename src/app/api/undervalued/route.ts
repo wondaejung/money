@@ -32,10 +32,15 @@ export async function GET(request: Request) {
     const data = await fetchLiveUndervaluedPicks();
 
     if (data.picks.length === 0) {
-      return NextResponse.json(
-        { error: "네이버 증권에서 저평가 종목을 가져오지 못했습니다." },
-        { status: 502 },
+      const hasThemePicks = Object.values(data.picksByTheme).some(
+        (picks) => picks.length > 0,
       );
+      if (!hasThemePicks) {
+        return NextResponse.json(
+          { error: "네이버 증권에서 저평가 종목을 가져오지 못했습니다." },
+          { status: 502 },
+        );
+      }
     }
 
     cache = {

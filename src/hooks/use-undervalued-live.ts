@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useUndervaluedStore } from "@/store/undervalued-store";
+import { useUndervaluedStore, EMPTY_PICKS_BY_THEME } from "@/store/undervalued-store";
 import type { UndervaluedPick } from "@/types/undervalued";
 
 const REFRESH_MS = 60_000;
-const LEGACY_STORAGE_KEY = "undervalued-value-picks-v1";
+const LEGACY_STORAGE_KEYS = [
+  "undervalued-value-picks-v1",
+  "undervalued-value-picks-v3",
+];
 
 interface UndervaluedLiveResponse {
   picks: UndervaluedPick[];
+  picksByTheme: Record<string, UndervaluedPick[]>;
   fetchedAt: string;
   source: "naver";
   error?: string;
@@ -32,7 +36,7 @@ export function useUndervaluedLive() {
       setLoading(true);
       setError(null);
       setLiveReady(false);
-      setPicks([]);
+      setPicks({ allPicks: [], picksByTheme: EMPTY_PICKS_BY_THEME });
 
       try {
         const query = options?.force ? "?refresh=true" : "";
@@ -45,17 +49,23 @@ export function useUndervaluedLive() {
           throw new Error(data.error ?? "네이버 시세를 불러오지 못했습니다.");
         }
 
-        const livePicks = data.picks.filter(isLivePick);
-        if (livePicks.length === 0) {
+        const picksByTheme = {
+          ...EMPTY_PICKS_BY_THEME,
+          ...data.picksByTheme,
+        };
+        const allPicks = data.picks.filter(isLivePick);
+        const themePicks = Object.values(picksByTheme).flat().filter(isLivePick);
+
+        if (allPicks.length === 0 && themePicks.length === 0) {
           throw new Error("네이버 실시간 시세가 포함된 종목이 없습니다.");
         }
 
-        setPicks(livePicks);
+        setPicks({ allPicks, picksByTheme });
         setFetchedAt(data.fetchedAt);
         setSource(data.source);
         setLiveReady(true);
       } catch (fetchError) {
-        setPicks([]);
+        setPicks({ allPicks: [], picksByTheme: EMPTY_PICKS_BY_THEME });
         setLiveReady(false);
         setError(
           fetchError instanceof Error
@@ -71,7 +81,9 @@ export function useUndervaluedLive() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      for (const key of LEGACY_STORAGE_KEYS) {
+        window.localStorage.removeItem(key);
+      }
     }
 
     void refresh({ force: true });

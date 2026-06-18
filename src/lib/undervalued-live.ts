@@ -11,8 +11,25 @@ import {
 import {
   computeUndervaluedScore,
   recalculateDiscount,
+  topUndervaluedPicks,
 } from "@/lib/undervalued-scoring";
-import type { UndervaluedPick } from "@/types/undervalued";
+import type { UndervaluedPick, UndervaluedTheme } from "@/types/undervalued";
+
+const UNDERVALUED_THEMES: UndervaluedTheme[] = [
+  "semiconductor",
+  "bio",
+  "battery",
+  "auto",
+  "finance",
+  "platform",
+];
+
+export type UndervaluedLiveData = {
+  picks: UndervaluedPick[];
+  picksByTheme: Record<UndervaluedTheme, UndervaluedPick[]>;
+  fetchedAt: string;
+  source: "naver";
+};
 
 const NAVER_BATCH_SIZE = 6;
 
@@ -60,11 +77,7 @@ async function buildPickForTicker(
   };
 }
 
-export async function fetchLiveUndervaluedPicks(): Promise<{
-  picks: UndervaluedPick[];
-  fetchedAt: string;
-  source: "naver";
-}> {
+export async function fetchLiveUndervaluedPicks(): Promise<UndervaluedLiveData> {
   const fetchedAt = new Date().toISOString();
 
   const entries = UNDERVALUED_UNIVERSE_TICKERS.map(
@@ -77,18 +90,24 @@ export async function fetchLiveUndervaluedPicks(): Promise<{
     (entry) => buildPickForTicker(entry, fetchedAt),
   );
 
-  const ranked = candidates
-    .filter((pick): pick is UndervaluedPick => pick !== null)
-    .sort((a, b) => {
-      const aUndervalued = a.discountPercent > 0 ? 1 : 0;
-      const bUndervalued = b.discountPercent > 0 ? 1 : 0;
-      if (bUndervalued !== aUndervalued) return bUndervalued - aUndervalued;
-      if (b.undervaluedScore !== a.undervaluedScore) {
-        return b.undervaluedScore - a.undervaluedScore;
-      }
-      return b.discountPercent - a.discountPercent;
-    })
-    .slice(0, 10);
+  const validCandidates = candidates.filter(
+    (pick): pick is UndervaluedPick => pick !== null,
+  );
 
-  return { picks: ranked, fetchedAt, source: "naver" };
+  const picksByTheme = Object.fromEntries(
+    UNDERVALUED_THEMES.map((theme) => [
+      theme,
+      topUndervaluedPicks(
+        validCandidates.filter((pick) => pick.theme === theme),
+        10,
+      ),
+    ]),
+  ) as Record<UndervaluedTheme, UndervaluedPick[]>;
+
+  const picks = topUndervaluedPicks(
+    UNDERVALUED_THEMES.flatMap((theme) => picksByTheme[theme]),
+    10,
+  );
+
+  return { picks, picksByTheme, fetchedAt, source: "naver" };
 }

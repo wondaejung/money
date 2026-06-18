@@ -3,74 +3,129 @@ import { persist } from "zustand/middleware";
 
 import type {
   UndervaluedPick,
+  UndervaluedTheme,
   UndervaluedThemeFilter,
 } from "@/types/undervalued";
 
+const UNDERVALUED_THEMES: UndervaluedTheme[] = [
+  "semiconductor",
+  "bio",
+  "battery",
+  "auto",
+  "finance",
+  "platform",
+];
+
+export const EMPTY_PICKS_BY_THEME: Record<UndervaluedTheme, UndervaluedPick[]> = {
+  semiconductor: [],
+  bio: [],
+  battery: [],
+  auto: [],
+  finance: [],
+  platform: [],
+};
+
+export interface UndervaluedPicksPayload {
+  allPicks: UndervaluedPick[];
+  picksByTheme: Record<UndervaluedTheme, UndervaluedPick[]>;
+}
+
+export function getDisplayedPicks(
+  { allPicks, picksByTheme }: UndervaluedPicksPayload,
+  themeFilter: UndervaluedThemeFilter,
+): UndervaluedPick[] {
+  if (themeFilter === "all") return allPicks;
+  return picksByTheme[themeFilter] ?? [];
+}
+
+export function getAllStoredPicks(
+  picksByTheme: Record<UndervaluedTheme, UndervaluedPick[]>,
+): UndervaluedPick[] {
+  const seen = new Set<string>();
+  const merged: UndervaluedPick[] = [];
+
+  for (const theme of UNDERVALUED_THEMES) {
+    for (const pick of picksByTheme[theme] ?? []) {
+      if (seen.has(pick.id)) continue;
+      seen.add(pick.id);
+      merged.push(pick);
+    }
+  }
+
+  return merged;
+}
+
 interface UndervaluedStore {
-  picks: UndervaluedPick[];
+  allPicks: UndervaluedPick[];
+  picksByTheme: Record<UndervaluedTheme, UndervaluedPick[]>;
   themeFilter: UndervaluedThemeFilter;
   selectedId: string | null;
-  setPicks: (picks: UndervaluedPick[]) => void;
+  setPicks: (payload: UndervaluedPicksPayload) => void;
   setThemeFilter: (filter: UndervaluedThemeFilter) => void;
   selectPick: (id: string | null) => void;
-  getFilteredPicks: () => UndervaluedPick[];
+  getDisplayedPicks: () => UndervaluedPick[];
   getSelectedPick: () => UndervaluedPick | null;
 }
 
 export const useUndervaluedStore = create<UndervaluedStore>()(
   persist(
     (set, get) => ({
-      picks: [],
+      allPicks: [],
+      picksByTheme: EMPTY_PICKS_BY_THEME,
       themeFilter: "all",
       selectedId: null,
 
-      setPicks: (picks) => {
+      setPicks: (payload) => {
         const { themeFilter, selectedId } = get();
-        const filtered =
-          themeFilter === "all"
-            ? picks
-            : picks.filter((pick) => pick.theme === themeFilter);
-        const stillVisible = filtered.some((pick) => pick.id === selectedId);
+        const displayed = getDisplayedPicks(payload, themeFilter);
+        const stillVisible = displayed.some((pick) => pick.id === selectedId);
 
         set({
-          picks,
-          selectedId: stillVisible ? selectedId : (filtered[0]?.id ?? null),
+          allPicks: payload.allPicks,
+          picksByTheme: payload.picksByTheme,
+          selectedId: stillVisible ? selectedId : (displayed[0]?.id ?? null),
         });
       },
 
       setThemeFilter: (filter) => {
-        const filtered =
-          filter === "all"
-            ? get().picks
-            : get().picks.filter((pick) => pick.theme === filter);
-
+        const payload = {
+          allPicks: get().allPicks,
+          picksByTheme: get().picksByTheme,
+        };
+        const displayed = getDisplayedPicks(payload, filter);
         const currentSelected = get().selectedId;
-        const stillVisible = filtered.some((pick) => pick.id === currentSelected);
+        const stillVisible = displayed.some((pick) => pick.id === currentSelected);
 
         set({
           themeFilter: filter,
           selectedId: stillVisible
             ? currentSelected
-            : (filtered[0]?.id ?? null),
+            : (displayed[0]?.id ?? null),
         });
       },
 
       selectPick: (id) => set({ selectedId: id }),
 
-      getFilteredPicks: () => {
-        const { picks, themeFilter } = get();
-        if (themeFilter === "all") return picks;
-        return picks.filter((pick) => pick.theme === themeFilter);
-      },
+      getDisplayedPicks: () =>
+        getDisplayedPicks(
+          {
+            allPicks: get().allPicks,
+            picksByTheme: get().picksByTheme,
+          },
+          get().themeFilter,
+        ),
 
       getSelectedPick: () => {
-        const { picks, selectedId } = get();
+        const { selectedId, picksByTheme } = get();
         if (!selectedId) return null;
-        return picks.find((pick) => pick.id === selectedId) ?? null;
+        return (
+          getAllStoredPicks(picksByTheme).find((pick) => pick.id === selectedId) ??
+          null
+        );
       },
     }),
     {
-      name: "undervalued-value-picks-v3",
+      name: "undervalued-value-picks-v4",
       partialize: (state) => ({
         themeFilter: state.themeFilter,
         selectedId: state.selectedId,
