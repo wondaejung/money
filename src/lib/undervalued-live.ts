@@ -3,22 +3,31 @@ import {
   UNDERVALUED_UNIVERSE_TICKERS,
   type UndervaluedUniverseEntry,
 } from "@/data/undervalued-universe";
-import { fetchNaverKrIntegrationMetrics } from "@/lib/naver-finance";
+import { mapInBatches } from "@/lib/fetch-batched";
+import {
+  fetchNaverKrFundamentals,
+  fetchNaverKrQuote,
+} from "@/lib/naver-finance";
 import {
   computeUndervaluedScore,
   recalculateDiscount,
 } from "@/lib/undervalued-scoring";
 import type { UndervaluedPick } from "@/types/undervalued";
 
-function buildPickFromLive(
+const NAVER_BATCH_SIZE = 6;
+
+async function buildPickForTicker(
   entry: UndervaluedUniverseEntry,
-  live: NonNullable<Awaited<ReturnType<typeof fetchNaverKrIntegrationMetrics>>>,
   fetchedAt: string,
-): UndervaluedPick | null {
-  const per = live.per;
-  const pbr = live.pbr;
-  const roe = live.roe;
-  const sectorAvgPer = live.sectorAvgPer ?? entry.sectorAvgPer;
+): Promise<UndervaluedPick | null> {
+  const quote = await fetchNaverKrQuote(entry.ticker);
+  if (!quote) return null;
+
+  const fundamentals = await fetchNaverKrFundamentals(entry.ticker);
+  const per = fundamentals?.per;
+  const pbr = fundamentals?.pbr;
+  const roe = fundamentals?.roe;
+  const sectorAvgPer = fundamentals?.sectorAvgPer ?? entry.sectorAvgPer;
 
   if (per == null || pbr == null || roe == null || sectorAvgPer <= 0) {
     return null;
@@ -29,12 +38,12 @@ function buildPickFromLive(
 
   return {
     id: entry.seedId ?? `uv-live-${entry.ticker}`,
-    name: live.name || entry.name,
+    name: fundamentals?.name ?? quote.name ?? entry.name,
     ticker: entry.ticker,
     market: "KR",
     theme: entry.theme,
     themeLabel: entry.themeLabel,
-    currentPrice: live.currentPrice,
+    currentPrice: quote.price,
     currency: "KRW",
     per,
     sectorAvgPer,
@@ -45,7 +54,7 @@ function buildPickFromLive(
     reason: entry.reason,
     catalyst: entry.catalyst,
     expectedTimeline: entry.expectedTimeline,
-    changePercent: live.changePercent,
+    changePercent: quote.changePercent,
     fetchedAt,
     priceSource: "naver",
   };
@@ -58,16 +67,14 @@ export async function fetchLiveUndervaluedPicks(): Promise<{
 }> {
   const fetchedAt = new Date().toISOString();
 
-  const candidates = await Promise.all(
-    UNDERVALUED_UNIVERSE_TICKERS.map(async (ticker) => {
-      const entry = UNDERVALUED_UNIVERSE.get(ticker);
-      if (!entry) return null;
+  const entries = UNDERVALUED_UNIVERSE_TICKERS.map(
+    (ticker) => UNDERVALUED_UNIVERSE.get(ticker)!,
+  );
 
-      const live = await fetchNaverKrIntegrationMetrics(ticker);
-      if (!live) return null;
-
-      return buildPickFromLive(entry, live, fetchedAt);
-    }),
+  const candidates = await mapInBatches(
+    entries,
+    NAVER_BATCH_SIZE,
+    (entry) => buildPickForTicker(entry, fetchedAt),
   );
 
   const ranked = candidates

@@ -1,15 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { mockUndervaluedPicks } from "@/data/mock-undervalued";
 import type {
   UndervaluedPick,
   UndervaluedThemeFilter,
 } from "@/types/undervalued";
-
-const KR_UNDERVALUED_PICKS = mockUndervaluedPicks.filter(
-  (pick) => pick.market === "KR",
-);
 
 interface UndervaluedStore {
   picks: UndervaluedPick[];
@@ -25,9 +20,9 @@ interface UndervaluedStore {
 export const useUndervaluedStore = create<UndervaluedStore>()(
   persist(
     (set, get) => ({
-      picks: KR_UNDERVALUED_PICKS,
+      picks: [],
       themeFilter: "all",
-      selectedId: KR_UNDERVALUED_PICKS[0]?.id ?? null,
+      selectedId: null,
 
       setPicks: (picks) => {
         const { themeFilter, selectedId } = get();
@@ -75,7 +70,7 @@ export const useUndervaluedStore = create<UndervaluedStore>()(
       },
     }),
     {
-      name: "undervalued-value-picks-v1",
+      name: "undervalued-value-picks-v2",
       partialize: (state) => ({
         themeFilter: state.themeFilter,
         selectedId: state.selectedId,

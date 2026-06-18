@@ -122,32 +122,22 @@ export interface NaverKrIntegrationMetrics {
   marketCapKrw: number | null;
 }
 
-export async function fetchNaverKrIntegrationMetrics(
+export async function fetchNaverKrFundamentals(
   symbolCode: string,
-): Promise<NaverKrIntegrationMetrics | null> {
+): Promise<{
+  per: number | null;
+  pbr: number | null;
+  roe: number | null;
+  sectorAvgPer: number | null;
+  marketCapKrw: number | null;
+  name: string | null;
+} | null> {
   const code = symbolCode.replace(/\D/g, "").padStart(6, "0").slice(-6);
   const url = `https://m.stock.naver.com/api/stock/${code}/integration`;
 
   try {
-    const [basic, integrationResponse] = await Promise.all([
-      fetchNaverKrQuote(code),
-      naverFetch(url),
-    ]);
-
-    if (!basic) return null;
-
-    if (!integrationResponse.ok) {
-      return {
-        name: basic.name ?? code,
-        currentPrice: basic.price,
-        changePercent: basic.changePercent,
-        per: null,
-        pbr: null,
-        roe: null,
-        sectorAvgPer: null,
-        marketCapKrw: null,
-      };
-    }
+    const integrationResponse = await naverFetch(url);
+    if (!integrationResponse.ok) return null;
 
     const integration = (await integrationResponse.json()) as {
       stockName?: string;
@@ -170,9 +160,7 @@ export async function fetchNaverKrIntegrationMetrics(
       : null;
 
     return {
-      name: integration.stockName ?? basic.name ?? code,
-      currentPrice: basic.price,
-      changePercent: basic.changePercent,
+      name: integration.stockName ?? null,
       per,
       pbr,
       roe,
@@ -182,6 +170,41 @@ export async function fetchNaverKrIntegrationMetrics(
   } catch {
     return null;
   }
+}
+
+export async function fetchNaverKrIntegrationMetrics(
+  symbolCode: string,
+): Promise<NaverKrIntegrationMetrics | null> {
+  const [basic, fundamentals] = await Promise.all([
+    fetchNaverKrQuote(symbolCode),
+    fetchNaverKrFundamentals(symbolCode),
+  ]);
+
+  if (!basic) return null;
+
+  if (!fundamentals) {
+    return {
+      name: basic.name ?? symbolCode,
+      currentPrice: basic.price,
+      changePercent: basic.changePercent,
+      per: null,
+      pbr: null,
+      roe: null,
+      sectorAvgPer: null,
+      marketCapKrw: null,
+    };
+  }
+
+  return {
+    name: fundamentals.name ?? basic.name ?? symbolCode,
+    currentPrice: basic.price,
+    changePercent: basic.changePercent,
+    per: fundamentals.per,
+    pbr: fundamentals.pbr,
+    roe: fundamentals.roe,
+    sectorAvgPer: fundamentals.sectorAvgPer,
+    marketCapKrw: fundamentals.marketCapKrw,
+  };
 }
 
 export async function fetchNaverUsdKrwRate(): Promise<number | null> {

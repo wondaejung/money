@@ -37,6 +37,7 @@ export function useUndervaluedLive() {
       setFetchedAt(data.fetchedAt);
       setSource(data.source);
     } catch (fetchError) {
+      setPicks([]);
       setError(
         fetchError instanceof Error
           ? fetchError.message
