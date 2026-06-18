@@ -1,6 +1,6 @@
 import {
   buildSellAdviceCacheKey,
-  getCachedSellAdvice,
+  getCachedSellAdviceByKey,
   setCachedSellAdvice,
 } from "@/lib/sell-advice-cache";
 import {
@@ -9,6 +9,8 @@ import {
   resolveLlmProvider,
   type LlmProvider,
 } from "@/lib/llm-briefing";
+import { compressSellCandidate } from "@/lib/llm-payload-compress";
+import { buildJsonSystemPrompt } from "@/lib/llm-prompt";
 import type { SellCandidate } from "@/lib/sell-recommendation";
 import { candidatesToRecommendations } from "@/lib/sell-recommendation";
 import type { SellRecommendation } from "@/types/portfolio";
@@ -24,69 +26,37 @@ export interface LlmSellAdviceContent {
   items: LlmSellAdviceItem[];
 }
 
-const SYSTEM_PROMPT = `당신은 한국 개인투자자의 포트폴리오 매도 검토 코치입니다.
-각 종목에 대해 당일 시세 흐름과 보유 손익을 바탕으로 짧은 조언을 작성합니다.
-
-반드시 아래 JSON만 반환하세요.
-{
+const SYSTEM_PROMPT = buildJsonSystemPrompt({
+  role: "포트폴리오 매도 검토 코치. 입력 종목별 짧은 조언만 생성.",
+  schema: `{
   "items": [
-    {
-      "holdingId": "string",
-      "llmReason": "string",
-      "upsideNote": "string"
-    }
+    { "holdingId": "string", "llmReason": "string", "upsideNote": "string" }
   ]
-}
-
-규칙:
-- 모든 문장은 한국어, 각 필드는 한 줄(40자 내외 권장)
-- 손절(stop_loss)·하락 검토(decline_review): llmReason에 당일 등락·분봉 흐름을 반영해 왜 지금 매도/비중 축소를 검토해야 하는지 설명. upsideNote는 빈 문자열 ""
-- 익절 검토(take_profit): llmReason에 익절을 검토할 핵심 이유 1줄. 추세상 추가 상승 여지가 있으면 upsideNote에 "↑ ..." 형태로 1줄, 없으면 ""
-- 과장·확정적 예측 금지, 투자 참고용 톤
-- 입력된 모든 holdingId에 대해 items를 반환`;
-
-function describeSparkline(sparkline: number[]): string {
-  if (sparkline.length < 2) return "당일 분봉 데이터 부족";
-
-  const first = sparkline[0];
-  const last = sparkline[sparkline.length - 1];
-  const min = Math.min(...sparkline);
-  const max = Math.max(...sparkline);
-  const intradayChange = first > 0 ? ((last - first) / first) * 100 : 0;
-
-  return `분봉 시가대비 ${intradayChange >= 0 ? "+" : ""}${intradayChange.toFixed(1)}%, 고가 ${Math.round(max).toLocaleString()}, 저가 ${Math.round(min).toLocaleString()}`;
-}
+}`,
+  rules: [
+    "한국어, 각 필드 1줄·40자 내외",
+    "stop_loss·decline_review: llmReason에 당일 등락·분봉 반영, upsideNote는 빈 문자열",
+    "take_profit: llmReason 1줄, 추가 상승 여지 있으면 upsideNote에 ↑ 1줄",
+    "입력 holdingId 전부 포함",
+  ],
+});
 
 function buildUserPrompt(candidates: SellCandidate[]): string {
-  const nowKst = new Date().toLocaleString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    dateStyle: "medium",
-    timeStyle: "short",
+  const lines = candidates.map((candidate) => {
+    const h = candidate.holding;
+    return compressSellCandidate({
+      holdingId: h.id,
+      symbol: h.symbol,
+      action: candidate.action,
+      purchasePrice: h.purchasePrice,
+      currentPrice: h.currentPrice,
+      gainPercent: h.gainPercent,
+      changePercent: h.changePercent,
+      sparkline: h.sparkline,
+    });
   });
 
-  const stocks = candidates
-    .map((candidate) => {
-      const h = candidate.holding;
-      return [
-        `- holdingId: ${h.id}`,
-        `  종목: ${h.name} (${h.symbol})`,
-        `  검토 유형: ${candidate.action} (${candidate.headline})`,
-        `  매수가: ${Math.round(h.purchasePrice).toLocaleString()}원`,
-        `  현재가: ${Math.round(h.currentPrice).toLocaleString()}원`,
-        `  총 수익률: ${h.gainPercent >= 0 ? "+" : ""}${h.gainPercent.toFixed(2)}%`,
-        `  세후·수수료 수익률: ${h.gainPercentAfterTax >= 0 ? "+" : ""}${h.gainPercentAfterTax.toFixed(2)}%`,
-        `  당일 등락률: ${h.changePercent >= 0 ? "+" : ""}${h.changePercent.toFixed(2)}%`,
-        `  당일 흐름: ${describeSparkline(h.sparkline)}`,
-        `  규칙 요약: ${candidate.ruleReason}`,
-      ].join("\n");
-    })
-    .join("\n\n");
-
-  return `기준 시각(KST): ${nowKst}
-
-아래 종목들의 매도 검토 조언을 작성하세요.
-
-${stocks}`;
+  return `SELL_REVIEW\n${lines.join("\n")}`;
 }
 
 export function parseLlmSellAdviceContent(
@@ -128,14 +98,14 @@ export function parseLlmSellAdviceContent(
 
 function fallbackDailyReason(candidate: SellCandidate): string {
   const h = candidate.holding;
-  const trend = describeSparkline(h.sparkline);
+  const change = `${h.changePercent >= 0 ? "+" : ""}${h.changePercent.toFixed(1)}%`;
 
   if (candidate.action === "stop_loss") {
-    return `당일 ${h.changePercent >= 0 ? "+" : ""}${h.changePercent.toFixed(1)}%·${trend} — 손실 구간에서 반등 신호가 약함`;
+    return `당일 ${change} — 손실 구간에서 반등 신호가 약함`;
   }
 
   if (candidate.action === "decline_review") {
-    return `당일 ${h.changePercent >= 0 ? "+" : ""}${h.changePercent.toFixed(1)}%·${trend} — 하락 압력이 이어지는 흐름`;
+    return `당일 ${change} — 하락 압력이 이어지는 흐름`;
   }
 
   return "";
@@ -165,12 +135,10 @@ export async function enrichSellRecommendationsWithLlm(
     candidates.map((c) => ({
       holdingId: c.holding.id,
       action: c.action,
-      currentPrice: c.holding.currentPrice,
-      changePercent: c.holding.changePercent,
     })),
   );
 
-  const cached = getCachedSellAdvice();
+  const cached = getCachedSellAdviceByKey(cacheKey);
   if (cached?.cacheKey === cacheKey) {
     return {
       recommendations: mergeAdvice(base, cached.items),

@@ -1,48 +1,36 @@
 import type { LlmSellAdviceContent } from "@/lib/llm-sell-advice";
+import { clearLlmCache, getLlmCache, setLlmCache } from "@/lib/llm-cache";
 
-const CACHE_TTL_MS = 20 * 60 * 1000;
-
-interface SellAdviceCacheEntry {
-  content: LlmSellAdviceContent;
-  expiresAt: number;
+function cacheKeyFor(cacheKey: string): string {
+  return `sell-advice:${cacheKey}`;
 }
 
-let sellAdviceCache: SellAdviceCacheEntry | null = null;
-
-export function getCachedSellAdvice(): LlmSellAdviceContent | null {
-  if (!sellAdviceCache) return null;
-  if (Date.now() > sellAdviceCache.expiresAt) {
-    sellAdviceCache = null;
-    return null;
-  }
-  return sellAdviceCache.content;
+export function getCachedSellAdviceByKey(
+  cacheKey: string,
+): LlmSellAdviceContent | null {
+  return getLlmCache<LlmSellAdviceContent>(cacheKeyFor(cacheKey));
 }
 
 export function setCachedSellAdvice(content: LlmSellAdviceContent): void {
-  sellAdviceCache = {
-    content,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  };
+  setLlmCache(cacheKeyFor(content.cacheKey), content);
+}
+
+export function clearSellAdviceCache(): void {
+  clearLlmCache();
 }
 
 export function buildSellAdviceCacheKey(
   items: Array<{
     holdingId: string;
     action: string;
-    currentPrice: number;
-    changePercent: number;
   }>,
 ): string {
   return items
-    .map(
-      (item) =>
-        `${item.holdingId}:${item.action}:${Math.round(item.currentPrice)}:${item.changePercent.toFixed(1)}`,
-    )
+    .map((item) => `${item.holdingId}:${item.action}`)
     .sort()
     .join("|");
 }
 
 export function isCachedSellAdviceValid(cacheKey: string): boolean {
-  const cached = getCachedSellAdvice();
-  return cached?.cacheKey === cacheKey;
+  return getCachedSellAdviceByKey(cacheKey) !== null;
 }

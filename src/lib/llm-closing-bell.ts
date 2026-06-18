@@ -1,9 +1,16 @@
 import {
   callLlmJson,
   hasLlmCredentials,
+  resolveLlmProvider,
   type LlmProvider,
 } from "@/lib/llm-briefing";
+import {
+  getCachedClosingBellLlm,
+  setCachedClosingBellLlm,
+} from "@/lib/closing-bell-llm-cache";
 import { formatLlmErrorMessage, isGroqRateLimited } from "@/lib/llm-groq";
+import { compressAfterHoursCandidate } from "@/lib/llm-payload-compress";
+import { buildJsonSystemPrompt } from "@/lib/llm-prompt";
 import type { AfterHoursCandidate } from "@/lib/closing-bell-naver";
 import type { AfterHoursPick, TodayAfterHoursSnapshot } from "@/types/prediction";
 
@@ -17,55 +24,33 @@ export interface LlmClosingBellContent {
   }>;
 }
 
-const SYSTEM_PROMPT = `당신은 한국 주식 시간외 단일가(18:00 마감) 데이터를 분석해 다음 거래일(09:00 개장) 강세 종목을 추천하는 애널리스트입니다.
-
-반드시 아래 JSON만 반환하세요.
-{
+const SYSTEM_PROMPT = buildJsonSystemPrompt({
+  role: "한국 주식 시간외 단일가(18:00) 데이터로 다음 거래일(09:00) 강세 종목 3개 추천.",
+  schema: `{
   "marketSummary": "string",
   "picks": [
-    {
-      "symbol": "6자리 종목코드",
-      "sector": "string",
-      "riseProbability": number,
-      "reason": "string"
-    }
+    { "symbol": "6자리코드", "sector": "string", "riseProbability": number, "reason": "string" }
   ]
-}
-
-규칙:
-- picks는 정확히 3개, 입력 후보 목록에 있는 symbol만 사용
-- marketSummary: 시간외 마감 배경을 한 문장으로 (예: "오후 6시 단일가에서 OO 섹터 거래량 급증 → 내일 아침 강세 예상")
-- riseProbability: 40~90 정수 (과장 금지)
-- reason: 시간외 가격·수급 근거 한 줄
-- 한국어, 투자 참고용 톤`;
+}`,
+  rules: [
+    "picks 정확히 3개, 입력 후보 symbol만 사용",
+    "marketSummary 한 문장",
+    "riseProbability 40~90 정수",
+    "reason 한 줄",
+  ],
+});
 
 function buildUserPrompt(
   sessionDate: string,
   targetDate: string,
   candidates: AfterHoursCandidate[],
 ): string {
-  const nowKst = new Date().toLocaleString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
   const list = candidates
     .slice(0, 8)
-    .map(
-      (c) =>
-        `- ${c.name} (${c.symbol}): 정규장 종가 ${c.regularClosePrice.toLocaleString()}원, 시간외 ${c.afterHoursClosePrice.toLocaleString()}원 (${c.afterHoursChangePercent >= 0 ? "+" : ""}${c.afterHoursChangePercent.toFixed(2)}%), 정규장 등락 ${c.regularChangePercent.toFixed(2)}%`,
-    )
+    .map((candidate) => compressAfterHoursCandidate(candidate))
     .join("\n");
 
-  return `기준 시각(KST): ${nowKst}
-시간외 마감일: ${sessionDate} 18:00
-검증 대상 거래일: ${targetDate} 09:00 개장
-
-시간외 후보 종목:
-${list}
-
-위 데이터로 다음 거래일 개장 강세 가능성이 높은 TOP 3를 고르세요.`;
+  return `AH_CLOSE ${sessionDate} TGT ${targetDate}\n${list}`;
 }
 
 export function parseLlmClosingBellContent(
@@ -166,6 +151,7 @@ export async function generateClosingBellSnapshot(
   closedAtIso: string,
   candidates: AfterHoursCandidate[],
   ruleSnapshot: TodayAfterHoursSnapshot,
+  sessionKey: string,
 ): Promise<LlmClosingBellResult> {
   if (!hasLlmCredentials() || candidates.length === 0) {
     return {
@@ -189,6 +175,15 @@ export async function generateClosingBellSnapshot(
     };
   }
 
+  const cachedLlm = getCachedClosingBellLlm(sessionKey);
+  if (cachedLlm) {
+    return {
+      snapshot: mergeLlmWithCandidates(cachedLlm, candidates, ruleSnapshot),
+      predictionSource: "llm",
+      llmProvider: resolveLlmProvider(),
+    };
+  }
+
   const result = await callLlmJson(
     SYSTEM_PROMPT,
     buildUserPrompt(sessionDate, targetDate, candidates),
@@ -205,6 +200,8 @@ export async function generateClosingBellSnapshot(
       rateLimited: isGroqRateLimited(),
     };
   }
+
+  setCachedClosingBellLlm(sessionKey, result.data);
 
   return {
     snapshot: mergeLlmWithCandidates(result.data, candidates, ruleSnapshot),

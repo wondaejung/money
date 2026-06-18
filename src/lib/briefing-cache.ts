@@ -1,30 +1,16 @@
 import type { LlmBriefingContent } from "@/lib/llm-briefing";
+import { clearLlmCache, getLlmCache, setLlmCache } from "@/lib/llm-cache";
 
-const CACHE_TTL_MS = 30 * 60 * 1000;
-
-interface BriefingCacheEntry {
-  content: LlmBriefingContent;
-  expiresAt: number;
-}
-
-let briefingCache: BriefingCacheEntry | null = null;
+const CACHE_KEY = "briefing:llm";
 
 export function getCachedLlmBriefing(): LlmBriefingContent | null {
-  if (!briefingCache) return null;
-  if (Date.now() > briefingCache.expiresAt) {
-    briefingCache = null;
-    return null;
-  }
-  return briefingCache.content;
+  return getLlmCache<LlmBriefingContent>(CACHE_KEY);
 }
 
 export function setCachedLlmBriefing(content: LlmBriefingContent): void {
-  briefingCache = {
-    content,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  };
+  setLlmCache(CACHE_KEY, content);
 }
 
 export function clearLlmBriefingCache(): void {
-  briefingCache = null;
+  clearLlmCache(CACHE_KEY);
 }

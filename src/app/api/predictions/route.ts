@@ -4,9 +4,7 @@ import { mergeScanSymbols } from "@/data/after-hours-watchlist";
 import {
   buildRuleBasedSnapshot,
   buildSessionKey,
-  getCachedClosingBellSnapshot,
   rankAfterHoursCandidates,
-  setCachedClosingBellSnapshot,
 } from "@/lib/closing-bell-naver";
 import { generateClosingBellSnapshot } from "@/lib/llm-closing-bell";
 import {
@@ -32,17 +30,6 @@ export async function GET(request: Request) {
   const scanSymbols = mergeScanSymbols(portfolioSymbols);
   const sessionKey = buildSessionKey(sessionDate, scanSymbols);
 
-  const cached = getCachedClosingBellSnapshot(sessionKey);
-  if (cached) {
-    const response: PredictionsApiResponse = {
-      snapshot: cached.snapshot,
-      predictionSource: cached.predictionSource,
-      llmProvider: cached.llmProvider,
-      fetchedAt: new Date().toISOString(),
-    };
-    return NextResponse.json(response);
-  }
-
   const quotes = await fetchNaverAfterHoursQuotes(scanSymbols);
   const candidates = rankAfterHoursCandidates(quotes);
 
@@ -66,15 +53,8 @@ export async function GET(request: Request) {
     closedAtIso,
     candidates,
     ruleSnapshot,
-  );
-
-  setCachedClosingBellSnapshot({
     sessionKey,
-    snapshot: llmResult.snapshot,
-    predictionSource: llmResult.predictionSource,
-    llmProvider: llmResult.llmProvider,
-    rateLimited: llmResult.rateLimited,
-  });
+  );
 
   const response: PredictionsApiResponse = {
     snapshot: llmResult.snapshot,

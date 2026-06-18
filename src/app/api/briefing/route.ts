@@ -27,9 +27,9 @@ function getKstTimestamp(): string {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const forceRefresh = searchParams.get("refresh") === "true";
+  const forceLlmRefresh = searchParams.get("refreshLlm") === "true";
 
-  if (forceRefresh) {
+  if (forceLlmRefresh) {
     clearLlmBriefingCache();
   }
 
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
   if (hasLlmCredentials()) {
     const cached = getCachedLlmBriefing();
 
-    if (cached && !forceRefresh) {
+    if (cached && !forceLlmRefresh) {
       overnightIssues = cached.overnightIssues;
       themeForecasts = cached.themeForecasts;
       briefingSource = "llm";
