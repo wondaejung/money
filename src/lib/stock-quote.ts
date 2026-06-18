@@ -53,6 +53,7 @@ export async function fetchStockQuote(
     if (naverQuote) {
       return { ...naverQuote, symbol: yahooSymbol };
     }
+    return null;
   }
 
   return fetchYahooQuote(yahooSymbol, options);

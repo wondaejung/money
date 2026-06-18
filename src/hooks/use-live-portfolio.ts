@@ -13,7 +13,7 @@ interface LivePortfolioState {
   sellAdviceSource?: "llm" | "rule";
   sellAdviceLlmError?: string;
   usdToKrw: number;
-  fxSource?: "naver" | "yahoo" | "fallback";
+  fxSource?: "naver" | "fallback";
   fxValid?: boolean;
   fetchedAt: string | null;
   loading: boolean;

@@ -1,4 +1,3 @@
-import { fetchYahooQuote } from "@/lib/yahoo-finance";
 import type { YahooQuote } from "@/types/quote";
 
 const NAVER_USER_AGENT = "Mozilla/5.0 (compatible; StockDashboard/1.0)";
@@ -458,73 +457,5 @@ export async function fetchNaverAfterHoursQuotes(
 
   return results.filter(
     (quote): quote is NaverAfterHoursQuote => quote !== null,
-  );
-}
-
-function normalizeKrSymbolCode(symbolCode: string): string {
-  return symbolCode.replace(/\D/g, "").padStart(6, "0").slice(-6);
-}
-
-async function fetchYahooKrScannerQuote(
-  symbolCode: string,
-): Promise<NaverScannerQuote | null> {
-  const code = normalizeKrSymbolCode(symbolCode);
-  let quote = await fetchYahooQuote(`${code}.KS`, { cache: "no-store" });
-
-  if (!quote) {
-    quote = await fetchYahooQuote(`${code}.KQ`, { cache: "no-store" });
-  }
-
-  if (!quote) return null;
-
-  return {
-    symbol: code,
-    name: quote.name,
-    regularClosePrice: quote.price,
-    afterHoursClosePrice: quote.price,
-    afterHoursChangePercent: 0,
-    regularChangePercent: quote.changePercent,
-    hasAfterHoursTrade: false,
-    tradingValueKrw: 0,
-    tradingValueLabel: "—",
-  };
-}
-
-async function fetchYahooKrIndexQuote(
-  indexCode: "KOSPI" | "KOSDAQ",
-): Promise<NaverIndexQuote | null> {
-  const yahooSymbol = indexCode === "KOSPI" ? "^KS11" : "^KQ11";
-  const quote = await fetchYahooQuote(yahooSymbol, { cache: "no-store" });
-  if (!quote) return null;
-
-  return {
-    symbol: indexCode,
-    name: indexCode,
-    changePercent: quote.changePercent,
-    closePrice: quote.price,
-  };
-}
-
-export async function fetchScannerQuotesWithFallback(
-  symbols: string[],
-): Promise<NaverScannerQuote[]> {
-  const naverQuotes = await fetchNaverScannerQuotes(symbols);
-  if (naverQuotes.length > 0) return naverQuotes;
-
-  const yahooQuotes = await Promise.all(
-    symbols.map((symbol) => fetchYahooKrScannerQuote(symbol)),
-  );
-
-  return yahooQuotes.filter(
-    (quote): quote is NaverScannerQuote => quote !== null,
-  );
-}
-
-export async function fetchIndexQuoteWithFallback(
-  indexCode: "KOSPI" | "KOSDAQ",
-): Promise<NaverIndexQuote | null> {
-  return (
-    (await fetchNaverIndexQuote(indexCode)) ??
-    (await fetchYahooKrIndexQuote(indexCode))
   );
 }

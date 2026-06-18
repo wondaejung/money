@@ -7,8 +7,8 @@ import {
   pickFeaturedAfterHoursStocks,
 } from "@/lib/market-tone";
 import {
-  fetchIndexQuoteWithFallback,
-  fetchScannerQuotesWithFallback,
+  fetchNaverIndexQuote,
+  fetchNaverScannerQuotes,
 } from "@/lib/naver-finance";
 import type { MarketToneApiResponse } from "@/types/market-tone";
 
@@ -38,9 +38,9 @@ export async function GET(request: Request) {
   }
 
   const [quotes, kospi, kosdaq] = await Promise.all([
-    fetchScannerQuotesWithFallback(scanSymbols),
-    fetchIndexQuoteWithFallback("KOSPI"),
-    fetchIndexQuoteWithFallback("KOSDAQ"),
+    fetchNaverScannerQuotes(scanSymbols),
+    fetchNaverIndexQuote("KOSPI"),
+    fetchNaverIndexQuote("KOSDAQ"),
   ]);
 
   if (quotes.length === 0) {

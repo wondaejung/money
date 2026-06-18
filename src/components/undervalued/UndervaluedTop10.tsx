@@ -87,7 +87,9 @@ function PickCard({
               </p>
             ) : null}
             <p className="text-[11px] text-red-400">
-              업종 대비 -{pick.discountPercent}%
+              {pick.discountPercent > 0
+                ? `업종 대비 -${pick.discountPercent}%`
+                : `업종 대비 +${Math.abs(pick.discountPercent)}%`}
             </p>
           </div>
         </div>
@@ -149,12 +151,12 @@ export function UndervaluedTop10() {
         <div>
           <h2 className="text-xl font-semibold">국내 저평가 TOP 10</h2>
           <p className="text-sm text-muted-foreground">
-            코스피·코스닥 종목 — 네이버 증권 시세·PER·PBR·ROE 기준 (1분마다
-            갱신)
+            코스피·코스닥 종목 — 네이버 증권 시세·PER·PBR·ROE 기준 저평가 스크리닝
+            (1분마다 갱신)
           </p>
           {fetchedLabel ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              {source === "naver" ? "네이버 증권" : "시세"} · {fetchedLabel}
+              네이버 증권 · {fetchedLabel}
             </p>
           ) : null}
         </div>
