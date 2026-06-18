@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { RefreshCw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -122,7 +123,7 @@ function PickCard({
 }
 
 export function UndervaluedTop10() {
-  const { loading, error, fetchedAt, source, refresh } = useUndervaluedLive();
+  const { loading, error, fetchedAt, liveReady, refresh } = useUndervaluedLive();
   const themeFilter = useUndervaluedStore((state) => state.themeFilter);
   const picks = useUndervaluedStore((state) => state.picks);
   const selectedId = useUndervaluedStore((state) => state.selectedId);
@@ -147,28 +148,16 @@ export function UndervaluedTop10() {
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold">국내 저평가 TOP 10</h2>
-          <p className="text-sm text-muted-foreground">
-            코스피·코스닥 종목 — 네이버 증권 시세·PER·PBR·ROE 기준 저평가 스크리닝
-            (1분마다 갱신)
+      <div className="space-y-1">
+        <h2 className="text-xl font-semibold">국내 저평가 TOP 10</h2>
+        <p className="text-sm text-muted-foreground">
+          네이버 증권 시세·PER·PBR·ROE 기준 — 실시간 데이터만 표시합니다.
+        </p>
+        {liveReady && fetchedLabel ? (
+          <p className="text-xs text-muted-foreground">
+            네이버 증권 실시간 · {fetchedLabel} 갱신
           </p>
-          {fetchedLabel ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              네이버 증권 · {fetchedLabel}
-            </p>
-          ) : null}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void refresh()}
-          disabled={loading}
-        >
-          {loading ? "불러오는 중…" : "새로고침"}
-        </Button>
+        ) : null}
       </div>
 
       {error ? (
@@ -177,28 +166,44 @@ export function UndervaluedTop10() {
         </div>
       ) : null}
 
-      <Tabs
-        value={themeFilter}
-        onValueChange={(value) =>
-          setThemeFilter(value as UndervaluedThemeFilter)
-        }
-      >
-        <TabsList className="h-auto w-full flex-wrap justify-start md:w-fit">
-          {UNDERVALUED_THEME_FILTERS.map((filter) => (
-            <TabsTrigger
-              key={filter.value}
-              value={filter.value}
-              className="text-xs sm:text-sm"
-            >
-              {filter.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center gap-2">
+        <Tabs
+          value={themeFilter}
+          onValueChange={(value) =>
+            setThemeFilter(value as UndervaluedThemeFilter)
+          }
+          className="min-w-0 flex-1"
+        >
+          <TabsList className="h-auto w-full flex-wrap justify-start md:w-fit">
+            {UNDERVALUED_THEME_FILTERS.map((filter) => (
+              <TabsTrigger
+                key={filter.value}
+                value={filter.value}
+                className="text-xs sm:text-sm"
+              >
+                {filter.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
-      {loading && filteredPicks.length === 0 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 gap-1.5"
+          onClick={() => void refresh({ force: true })}
+          disabled={loading}
+          aria-label="시세 새로고침"
+        >
+          <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} />
+          {loading ? "불러오는 중…" : "새로고침"}
+        </Button>
+      </div>
+
+      {loading || !liveReady ? (
         <div className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
-          네이버 증권에서 시세를 불러오는 중입니다…
+          네이버 증권에서 실시간 시세를 불러오는 중입니다…
         </div>
       ) : filteredPicks.length === 0 ? (
         <div className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">

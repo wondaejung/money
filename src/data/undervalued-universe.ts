@@ -1,4 +1,3 @@
-import { AFTER_HOURS_SCAN_SYMBOLS } from "@/data/after-hours-watchlist";
 import { mockUndervaluedPicks } from "@/data/mock-undervalued";
 import { UNDERVALUED_THEME_LABELS } from "@/types/undervalued";
 import type { UndervaluedTheme } from "@/types/undervalued";
@@ -82,30 +81,14 @@ function buildUniverseMap(): Map<string, UndervaluedUniverseEntry> {
     });
   }
 
-  for (const ticker of AFTER_HOURS_SCAN_SYMBOLS) {
-    if (!map.has(ticker)) {
-      map.set(ticker, {
-        ticker,
-        name: ticker,
-        theme: "platform",
-        themeLabel: UNDERVALUED_THEME_LABELS.platform,
-        baselinePrice: 0,
-        baselinePer: 0,
-        sectorAvgPer: 20,
-        baselinePbr: 0,
-        baselineRoe: 0,
-        reason: "유동성 높은 대형주 — 실시간 PER 기준 저평가 여부를 점검합니다.",
-        catalyst: "업황 반등 또는 실적 서프라이즈.",
-        expectedTimeline: "분기 실적 발표 전후",
-      });
-    }
-  }
-
   return map;
 }
 
 export const UNDERVALUED_UNIVERSE = buildUniverseMap();
 
-export const UNDERVALUED_UNIVERSE_TICKERS = Array.from(
-  UNDERVALUED_UNIVERSE.keys(),
-);
+export const UNDERVALUED_SCREEN_TICKERS = [
+  ...mockUndervaluedPicks.filter((item) => item.market === "KR").map((pick) => pick.ticker),
+  ...EXTRA_UNIVERSE.map((item) => item.ticker),
+].filter((ticker, index, tickers) => tickers.indexOf(ticker) === index);
+
+export const UNDERVALUED_UNIVERSE_TICKERS = UNDERVALUED_SCREEN_TICKERS;

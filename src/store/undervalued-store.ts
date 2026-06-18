@@ -70,7 +70,7 @@ export const useUndervaluedStore = create<UndervaluedStore>()(
       },
     }),
     {
-      name: "undervalued-value-picks-v2",
+      name: "undervalued-value-picks-v3",
       partialize: (state) => ({
         themeFilter: state.themeFilter,
         selectedId: state.selectedId,

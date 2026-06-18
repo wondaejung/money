@@ -12,9 +12,20 @@ let cache: {
   expiresAt: number;
 } | null = null;
 
-export async function GET() {
+export function clearUndervaluedCache(): void {
+  cache = null;
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.get("refresh") === "true";
+
+  if (forceRefresh) {
+    clearUndervaluedCache();
+  }
+
   try {
-    if (cache && Date.now() < cache.expiresAt) {
+    if (!forceRefresh && cache && Date.now() < cache.expiresAt) {
       return NextResponse.json(cache.payload);
     }
 
