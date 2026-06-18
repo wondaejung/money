@@ -175,7 +175,7 @@ export async function generateClosingBellSnapshot(
     };
   }
 
-  const cachedLlm = getCachedClosingBellLlm(sessionKey);
+  const cachedLlm = await getCachedClosingBellLlm(sessionKey);
   if (cachedLlm) {
     return {
       snapshot: mergeLlmWithCandidates(cachedLlm, candidates, ruleSnapshot),
@@ -201,7 +201,7 @@ export async function generateClosingBellSnapshot(
     };
   }
 
-  setCachedClosingBellLlm(sessionKey, result.data);
+  await setCachedClosingBellLlm(sessionKey, result.data);
 
   return {
     snapshot: mergeLlmWithCandidates(result.data, candidates, ruleSnapshot),

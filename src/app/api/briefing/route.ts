@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   const forceLlmRefresh = searchParams.get("refreshLlm") === "true";
 
   if (forceLlmRefresh) {
-    clearLlmBriefingCache();
+    await clearLlmBriefingCache();
   }
 
   const indexResults = await Promise.all(
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
   let llmError: string | undefined;
 
   if (hasLlmCredentials()) {
-    const cached = getCachedLlmBriefing();
+    const cached = await getCachedLlmBriefing();
 
     if (cached && !forceLlmRefresh) {
       overnightIssues = cached.overnightIssues;
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
       llmError = llmResult.error;
 
       if (llmResult.content) {
-        setCachedLlmBriefing(llmResult.content);
+        await setCachedLlmBriefing(llmResult.content);
         overnightIssues = llmResult.content.overnightIssues;
         themeForecasts = llmResult.content.themeForecasts;
         briefingSource = "llm";

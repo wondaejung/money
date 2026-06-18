@@ -1,19 +1,19 @@
 import type { LlmClosingBellContent } from "@/lib/llm-closing-bell";
-import { getLlmCache, setLlmCache } from "@/lib/llm-cache";
+import { getLlmCacheAsync, setLlmCacheAsync } from "@/lib/llm-cache";
 
 function cacheKeyFor(sessionKey: string): string {
   return `closing-bell:${sessionKey}`;
 }
 
-export function getCachedClosingBellLlm(
+export async function getCachedClosingBellLlm(
   sessionKey: string,
-): LlmClosingBellContent | null {
-  return getLlmCache<LlmClosingBellContent>(cacheKeyFor(sessionKey));
+): Promise<LlmClosingBellContent | null> {
+  return getLlmCacheAsync<LlmClosingBellContent>(cacheKeyFor(sessionKey));
 }
 
-export function setCachedClosingBellLlm(
+export async function setCachedClosingBellLlm(
   sessionKey: string,
   content: LlmClosingBellContent,
-): void {
-  setLlmCache(cacheKeyFor(sessionKey), content);
+): Promise<void> {
+  await setLlmCacheAsync(cacheKeyFor(sessionKey), content);
 }

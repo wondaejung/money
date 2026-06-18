@@ -1,22 +1,23 @@
 import type { LlmSellAdviceContent } from "@/lib/llm-sell-advice";
-import { clearLlmCache, getLlmCache, setLlmCache } from "@/lib/llm-cache";
+import {
+  getLlmCacheAsync,
+  setLlmCacheAsync,
+} from "@/lib/llm-cache";
 
 function cacheKeyFor(cacheKey: string): string {
   return `sell-advice:${cacheKey}`;
 }
 
-export function getCachedSellAdviceByKey(
+export async function getCachedSellAdviceByKey(
   cacheKey: string,
-): LlmSellAdviceContent | null {
-  return getLlmCache<LlmSellAdviceContent>(cacheKeyFor(cacheKey));
+): Promise<LlmSellAdviceContent | null> {
+  return getLlmCacheAsync<LlmSellAdviceContent>(cacheKeyFor(cacheKey));
 }
 
-export function setCachedSellAdvice(content: LlmSellAdviceContent): void {
-  setLlmCache(cacheKeyFor(content.cacheKey), content);
-}
-
-export function clearSellAdviceCache(): void {
-  clearLlmCache();
+export async function setCachedSellAdvice(
+  content: LlmSellAdviceContent,
+): Promise<void> {
+  await setLlmCacheAsync(cacheKeyFor(content.cacheKey), content);
 }
 
 export function buildSellAdviceCacheKey(
@@ -31,6 +32,20 @@ export function buildSellAdviceCacheKey(
     .join("|");
 }
 
-export function isCachedSellAdviceValid(cacheKey: string): boolean {
-  return getCachedSellAdviceByKey(cacheKey) !== null;
+export async function isCachedSellAdviceValid(
+  cacheKey: string,
+): Promise<boolean> {
+  return (await getCachedSellAdviceByKey(cacheKey)) !== null;
+}
+
+function isSellAdviceLlmEnabled(): boolean {
+  const flag = process.env.GEMINI_ENABLE_SELL_ADVICE?.trim().toLowerCase();
+  return flag === "true" || flag === "1";
+}
+
+export function isSellAdviceLlmEnabledForProvider(
+  provider: string | null | undefined,
+): boolean {
+  if (provider !== "gemini") return true;
+  return isSellAdviceLlmEnabled();
 }

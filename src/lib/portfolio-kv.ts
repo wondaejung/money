@@ -85,3 +85,59 @@ export async function setPortfolioInStore<T>(
 
   await getRestRedisClient().set(key, value);
 }
+
+export async function setPortfolioInStoreWithTtl<T>(
+  key: string,
+  value: T,
+  ttlSeconds: number,
+): Promise<void> {
+  const backend = getBackend();
+  if (!backend) {
+    throw new Error("Portfolio store is not configured.");
+  }
+
+  if (backend === "redis-url") {
+    const client = await getUrlRedisClient();
+    await client.set(key, JSON.stringify(value), { EX: ttlSeconds });
+    return;
+  }
+
+  await getRestRedisClient().set(key, value, { ex: ttlSeconds });
+}
+
+export async function deletePortfolioFromStore(key: string): Promise<void> {
+  const backend = getBackend();
+  if (!backend) return;
+
+  if (backend === "redis-url") {
+    const client = await getUrlRedisClient();
+    await client.del(key);
+    return;
+  }
+
+  await getRestRedisClient().del(key);
+}
+
+export async function incrementPortfolioStoreCounter(
+  key: string,
+  ttlSeconds: number,
+): Promise<number> {
+  const backend = getBackend();
+  if (!backend) return 0;
+
+  if (backend === "redis-url") {
+    const client = await getUrlRedisClient();
+    const count = await client.incr(key);
+    if (count === 1) {
+      await client.expire(key, ttlSeconds);
+    }
+    return count;
+  }
+
+  const client = getRestRedisClient();
+  const count = await client.incr(key);
+  if (count === 1) {
+    await client.expire(key, ttlSeconds);
+  }
+  return count;
+}

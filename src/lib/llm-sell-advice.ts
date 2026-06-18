@@ -1,6 +1,7 @@
 import {
   buildSellAdviceCacheKey,
   getCachedSellAdviceByKey,
+  isSellAdviceLlmEnabledForProvider,
   setCachedSellAdvice,
 } from "@/lib/sell-advice-cache";
 import {
@@ -138,7 +139,7 @@ export async function enrichSellRecommendationsWithLlm(
     })),
   );
 
-  const cached = getCachedSellAdviceByKey(cacheKey);
+  const cached = await getCachedSellAdviceByKey(cacheKey);
   if (cached?.cacheKey === cacheKey) {
     return {
       recommendations: mergeAdvice(base, cached.items),
@@ -147,12 +148,22 @@ export async function enrichSellRecommendationsWithLlm(
     };
   }
 
+  const provider = resolveLlmProvider();
+
   if (!hasLlmCredentials()) {
     return {
       recommendations: applyRuleFallback(base, candidates),
       adviceSource: "rule",
       llmProvider: null,
       llmError: "LLM API 키가 설정되지 않았습니다.",
+    };
+  }
+
+  if (!isSellAdviceLlmEnabledForProvider(provider)) {
+    return {
+      recommendations: applyRuleFallback(base, candidates),
+      adviceSource: "rule",
+      llmProvider: provider,
     };
   }
 
@@ -171,7 +182,7 @@ export async function enrichSellRecommendationsWithLlm(
     };
   }
 
-  setCachedSellAdvice(result.data);
+  await setCachedSellAdvice(result.data);
 
   return {
     recommendations: mergeAdvice(base, result.data.items),
