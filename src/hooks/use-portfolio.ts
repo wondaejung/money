@@ -10,7 +10,7 @@ import type { LivePortfolioApiResponse } from "@/types/quote";
 interface PortfolioState {
   holdings: LiveHolding[];
   usdToKrw: number;
-  fxSource?: "yahoo" | "fallback";
+  fxSource?: "naver" | "yahoo" | "fallback";
   fxValid?: boolean;
   fetchedAt: string | null;
   loading: boolean;

@@ -78,9 +78,11 @@ export function MorningBriefing() {
       {briefingSource === "mock" && !loading && !llmProvider && (
         <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
           AI 브리핑을 사용하려면{" "}
-          <code className="text-xs">.env.local</code>에 무료 API 키를 설정하고
-          dev 서버를 재시작하세요. Groq(
-          <code className="text-xs">GROQ_API_KEY</code>) 추천.
+          <code className="text-xs">.env</code>에 LLM API 키를 설정하고 dev
+          서버를 재시작하세요. Groq(
+          <code className="text-xs">GROQ_API_KEY</code>) 또는 Gemini(
+          <code className="text-xs">GEMINI_API_KEY</code>)를 사용할 수
+          있습니다.
         </p>
       )}
 

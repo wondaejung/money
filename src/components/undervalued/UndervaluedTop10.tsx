@@ -3,11 +3,13 @@
 import { useMemo } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   PickCardShell,
   ScoreProgress,
 } from "@/components/undervalued/ScoreProgress";
+import { useUndervaluedLive } from "@/hooks/use-undervalued-live";
 import { useUndervaluedStore } from "@/store/undervalued-store";
 import { UNDERVALUED_THEME_FILTERS } from "@/types/undervalued";
 import type { UndervaluedPick, UndervaluedThemeFilter } from "@/types/undervalued";
@@ -19,7 +21,12 @@ function formatPrice(pick: UndervaluedPick): string {
   return `$${pick.currentPrice.toFixed(2)}`;
 }
 
-function formatPercent(value: number): string {
+function formatChangePercent(value: number): string {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatRatioPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
@@ -68,6 +75,17 @@ function PickCard({
           </div>
           <div className="text-right">
             <p className="font-mono text-sm font-medium">{formatPrice(pick)}</p>
+            {typeof pick.changePercent === "number" ? (
+              <p
+                className={
+                  pick.changePercent >= 0
+                    ? "text-[11px] text-red-500"
+                    : "text-[11px] text-blue-500"
+                }
+              >
+                {formatChangePercent(pick.changePercent)}
+              </p>
+            ) : null}
             <p className="text-[11px] text-red-400">
               업종 대비 -{pick.discountPercent}%
             </p>
@@ -90,7 +108,7 @@ function PickCard({
           <div>
             <p className="text-muted-foreground">ROE</p>
             <p className="font-mono font-medium text-foreground">
-              {formatPercent(pick.roe)}
+              {formatRatioPercent(pick.roe)}
             </p>
           </div>
         </div>
@@ -102,6 +120,7 @@ function PickCard({
 }
 
 export function UndervaluedTop10() {
+  const { loading, error, fetchedAt, source, refresh } = useUndervaluedLive();
   const themeFilter = useUndervaluedStore((state) => state.themeFilter);
   const picks = useUndervaluedStore((state) => state.picks);
   const selectedId = useUndervaluedStore((state) => state.selectedId);
@@ -116,15 +135,45 @@ export function UndervaluedTop10() {
     [picks, themeFilter],
   );
 
+  const fetchedLabel = fetchedAt
+    ? new Date(fetchedAt).toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : null;
+
   return (
     <section className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold">국내 저평가 TOP 10</h2>
-        <p className="text-sm text-muted-foreground">
-          코스피·코스닥 종목 — PER·PBR·ROE·낙폭 과대를 종합한 밸류 스크리닝
-          결과입니다.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">국내 저평가 TOP 10</h2>
+          <p className="text-sm text-muted-foreground">
+            코스피·코스닥 종목 — 네이버 증권 시세·PER·PBR·ROE 기준 (1분마다
+            갱신)
+          </p>
+          {fetchedLabel ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {source === "naver" ? "네이버 증권" : "시세"} · {fetchedLabel}
+            </p>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void refresh()}
+          disabled={loading}
+        >
+          {loading ? "불러오는 중…" : "새로고침"}
+        </Button>
       </div>
+
+      {error ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
 
       <Tabs
         value={themeFilter}
@@ -145,7 +194,11 @@ export function UndervaluedTop10() {
         </TabsList>
       </Tabs>
 
-      {filteredPicks.length === 0 ? (
+      {loading && filteredPicks.length === 0 ? (
+        <div className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
+          네이버 증권에서 시세를 불러오는 중입니다…
+        </div>
+      ) : filteredPicks.length === 0 ? (
         <div className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
           해당 테마의 저평가 종목이 없습니다.
         </div>

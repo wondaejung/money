@@ -17,6 +17,7 @@ export async function fetchKrExchangeType(
     const response = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; StockDashboard/1.0)" },
       cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
     });
 
     if (!response.ok) return null;

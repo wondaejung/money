@@ -15,6 +15,7 @@ interface UndervaluedStore {
   picks: UndervaluedPick[];
   themeFilter: UndervaluedThemeFilter;
   selectedId: string | null;
+  setPicks: (picks: UndervaluedPick[]) => void;
   setThemeFilter: (filter: UndervaluedThemeFilter) => void;
   selectPick: (id: string | null) => void;
   getFilteredPicks: () => UndervaluedPick[];
@@ -27,6 +28,20 @@ export const useUndervaluedStore = create<UndervaluedStore>()(
       picks: KR_UNDERVALUED_PICKS,
       themeFilter: "all",
       selectedId: KR_UNDERVALUED_PICKS[0]?.id ?? null,
+
+      setPicks: (picks) => {
+        const { themeFilter, selectedId } = get();
+        const filtered =
+          themeFilter === "all"
+            ? picks
+            : picks.filter((pick) => pick.theme === themeFilter);
+        const stillVisible = filtered.some((pick) => pick.id === selectedId);
+
+        set({
+          picks,
+          selectedId: stillVisible ? selectedId : (filtered[0]?.id ?? null),
+        });
+      },
 
       setThemeFilter: (filter) => {
         const filtered =

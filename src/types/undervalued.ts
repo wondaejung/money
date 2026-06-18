@@ -28,6 +28,9 @@ export interface UndervaluedPick {
   reason: string;
   catalyst: string;
   expectedTimeline: string;
+  changePercent?: number;
+  fetchedAt?: string;
+  priceSource?: "naver";
 }
 
 export const UNDERVALUED_THEME_LABELS: Record<UndervaluedTheme, string> = {

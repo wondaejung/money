@@ -41,7 +41,7 @@ interface HoldingsTableProps {
   priceFlash: Record<string, "up" | "down" | null>;
   fetchedAt: string | null;
   usdToKrw: number;
-  fxSource?: "yahoo" | "fallback";
+  fxSource?: "naver" | "yahoo" | "fallback";
   fxValid?: boolean;
 }
 
@@ -115,7 +115,11 @@ export function HoldingsTable({
             )}
             <Badge variant={fxValid ? "secondary" : "destructive"}>
               USD/KRW {usdToKrw.toLocaleString(undefined, { maximumFractionDigits: 2 })}원
-              {fxSource === "yahoo" ? " (Yahoo)" : " (기본값)"}
+              {fxSource === "naver"
+                ? " (네이버)"
+                : fxSource === "yahoo"
+                  ? " (Yahoo)"
+                  : " (기본값)"}
             </Badge>
             {fetchedAt && (
               <span className="text-xs text-muted-foreground">

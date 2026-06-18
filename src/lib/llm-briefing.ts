@@ -312,6 +312,22 @@ type ProviderCallResult =
   | { content: LlmBriefingContent; error?: undefined }
   | { content: null; error: string };
 
+function formatGeminiApiError(status: number, message: string): string {
+  if (status === 429 || /quota|rate limit/i.test(message)) {
+    return "Gemini API 할당량 초과 — 무료 한도를 모두 사용했습니다. Google AI Studio에서 요금제를 확인하거나 다른 LLM(Groq 등)으로 전환해 주세요.";
+  }
+
+  return message.length > 120 ? `${message.slice(0, 120)}…` : message;
+}
+
+async function readGeminiError(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => null)) as {
+    error?: { message?: string };
+  } | null;
+  const message = body?.error?.message ?? `HTTP ${response.status}`;
+  return formatGeminiApiError(response.status, message);
+}
+
 async function callGroq(
   systemPrompt: string,
   userPrompt: string,
@@ -359,9 +375,11 @@ async function requestGroqJson(
 async function callGemini(
   systemPrompt: string,
   userPrompt: string,
-): Promise<LlmBriefingContent | null> {
+): Promise<ProviderCallResult> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    return { content: null, error: "GEMINI_API_KEY가 없습니다." };
+  }
 
   const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -379,7 +397,9 @@ async function callGemini(
     }),
   });
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    return { content: null, error: await readGeminiError(response) };
+  }
 
   const data = (await response.json()) as {
     candidates?: Array<{
@@ -388,12 +408,18 @@ async function callGemini(
   };
 
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) return null;
+  if (!content) {
+    return { content: null, error: "Gemini 응답이 비어 있습니다." };
+  }
 
   try {
-    return parseLlmBriefingContent(JSON.parse(content));
+    const parsed = parseLlmBriefingContent(JSON.parse(content));
+    if (!parsed) {
+      return { content: null, error: "Gemini 응답 JSON 형식이 올바르지 않습니다." };
+    }
+    return { content: parsed };
   } catch {
-    return null;
+    return { content: null, error: "Gemini 응답을 파싱하지 못했습니다." };
   }
 }
 
@@ -484,12 +510,8 @@ async function callProvider(
   switch (provider) {
     case "groq":
       return callGroq(systemPrompt, userPrompt);
-    case "gemini": {
-      const content = await callGemini(systemPrompt, userPrompt);
-      return content
-        ? { content }
-        : { content: null, error: "Gemini API 호출에 실패했습니다." };
-    }
+    case "gemini":
+      return callGemini(systemPrompt, userPrompt);
     case "ollama": {
       const content = await callOllama(systemPrompt, userPrompt);
       return content
@@ -544,7 +566,7 @@ async function requestProviderJson(
       });
 
       if (!response.ok) {
-        return { raw: null, error: `Gemini HTTP ${response.status}` };
+        return { raw: null, error: await readGeminiError(response) };
       }
 
       const data = (await response.json()) as {

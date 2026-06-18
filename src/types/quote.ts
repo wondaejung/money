@@ -24,7 +24,7 @@ export interface LivePortfolioApiResponse {
   sellAdviceLlmProvider?: import("@/lib/llm-briefing").LlmProvider | null;
   sellAdviceLlmError?: string;
   usdToKrw: number;
-  fxSource?: "yahoo" | "fallback";
+  fxSource?: "naver" | "yahoo" | "fallback";
   fxValid?: boolean;
   fetchedAt: string;
   source: "yahoo";

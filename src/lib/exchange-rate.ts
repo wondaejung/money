@@ -1,3 +1,4 @@
+import { fetchNaverUsdKrwRate } from "@/lib/naver-finance";
 import { fetchYahooQuote } from "@/lib/yahoo-finance";
 
 const MIN_USD_KRW = 900;
@@ -6,7 +7,7 @@ const FALLBACK_USD_TO_KRW = 1380;
 
 export interface ExchangeRateInfo {
   usdToKrw: number;
-  source: "yahoo" | "fallback";
+  source: "naver" | "yahoo" | "fallback";
   yahooSymbol: string;
   fetchedAt: string;
   isValid: boolean;
@@ -29,6 +30,17 @@ export function normalizeUsdKrwRate(price: number): number | null {
 
 export async function fetchUsdKrwRate(): Promise<ExchangeRateInfo> {
   const fetchedAt = new Date().toISOString();
+
+  const naverRate = await fetchNaverUsdKrwRate();
+  if (naverRate) {
+    return {
+      usdToKrw: naverRate,
+      source: "naver",
+      yahooSymbol: "KRW=X",
+      fetchedAt,
+      isValid: true,
+    };
+  }
 
   const quote = await fetchYahooQuote("KRW=X", { cache: "no-store" });
   const normalized = quote ? normalizeUsdKrwRate(quote.price) : null;

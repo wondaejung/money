@@ -1,6 +1,20 @@
+import { fetchYahooQuote } from "@/lib/yahoo-finance";
 import type { YahooQuote } from "@/types/quote";
 
 const NAVER_USER_AGENT = "Mozilla/5.0 (compatible; StockDashboard/1.0)";
+const NAVER_FETCH_TIMEOUT_MS = 5_000;
+
+async function naverFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    headers: {
+      "User-Agent": NAVER_USER_AGENT,
+      ...init?.headers,
+    },
+    cache: init?.cache ?? "no-store",
+    signal: init?.signal ?? AbortSignal.timeout(NAVER_FETCH_TIMEOUT_MS),
+  });
+}
 
 interface NaverPriceDirection {
   code: string;
@@ -84,6 +98,125 @@ function shouldUseOverMarketPrice(data: NaverBasicResponse): boolean {
   return overPrice !== regularPrice;
 }
 
+function findTotalInfoValue(
+  totalInfos: Array<{ code?: string; value?: string }> | undefined,
+  code: string,
+): string | undefined {
+  return totalInfos?.find((item) => item.code === code)?.value;
+}
+
+function parseMetricValue(value: string | undefined): number | null {
+  if (!value || value === "N/A" || value === "-") return null;
+  const normalized = value.replace(/,/g, "").replace(/%/g, "").trim();
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export interface NaverKrIntegrationMetrics {
+  name: string;
+  currentPrice: number;
+  changePercent: number;
+  per: number | null;
+  pbr: number | null;
+  roe: number | null;
+  sectorAvgPer: number | null;
+  marketCapKrw: number | null;
+}
+
+export async function fetchNaverKrIntegrationMetrics(
+  symbolCode: string,
+): Promise<NaverKrIntegrationMetrics | null> {
+  const code = symbolCode.replace(/\D/g, "").padStart(6, "0").slice(-6);
+  const url = `https://m.stock.naver.com/api/stock/${code}/integration`;
+
+  try {
+    const [basic, integrationResponse] = await Promise.all([
+      fetchNaverKrQuote(code),
+      naverFetch(url),
+    ]);
+
+    if (!basic) return null;
+
+    if (!integrationResponse.ok) {
+      return {
+        name: basic.name ?? code,
+        currentPrice: basic.price,
+        changePercent: basic.changePercent,
+        per: null,
+        pbr: null,
+        roe: null,
+        sectorAvgPer: null,
+        marketCapKrw: null,
+      };
+    }
+
+    const integration = (await integrationResponse.json()) as {
+      stockName?: string;
+      totalInfos?: Array<{ code?: string; value?: string }>;
+    };
+
+    const infos = integration.totalInfos;
+    const per =
+      parseMetricValue(findTotalInfoValue(infos, "per")) ??
+      parseMetricValue(findTotalInfoValue(infos, "forwardPer"));
+    const pbr = parseMetricValue(findTotalInfoValue(infos, "pbr"));
+    const roe = parseMetricValue(findTotalInfoValue(infos, "roe"));
+    const sectorAvgPer =
+      parseMetricValue(findTotalInfoValue(infos, "industryPer")) ??
+      parseMetricValue(findTotalInfoValue(infos, "sectorPer")) ??
+      parseMetricValue(findTotalInfoValue(infos, "industryAveragePer"));
+    const marketCapLabel = findTotalInfoValue(infos, "marketValue");
+    const marketCapKrw = marketCapLabel
+      ? parseTradingValue(marketCapLabel)
+      : null;
+
+    return {
+      name: integration.stockName ?? basic.name ?? code,
+      currentPrice: basic.price,
+      changePercent: basic.changePercent,
+      per,
+      pbr,
+      roe,
+      sectorAvgPer,
+      marketCapKrw,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchNaverUsdKrwRate(): Promise<number | null> {
+  const endpoints = [
+    "https://m.stock.naver.com/front-api/marketIndex/exchange/FX_USDKRW/basic",
+    "https://m.stock.naver.com/api/marketindex/exchange/FX_USDKRW/basic",
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const response = await naverFetch(url);
+
+      if (!response.ok) continue;
+
+      const data = (await response.json()) as {
+        closePrice?: string;
+        saleBaseRate?: string;
+        basePrice?: string;
+      };
+
+      const raw =
+        data.closePrice ?? data.saleBaseRate ?? data.basePrice ?? null;
+      if (!raw) continue;
+
+      const rate = parseKrwPrice(raw);
+      if (rate >= 900 && rate <= 2000) return rate;
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return null;
+}
+
 export async function fetchNaverKrQuote(
   symbolCode: string,
 ): Promise<YahooQuote | null> {
@@ -91,10 +224,7 @@ export async function fetchNaverKrQuote(
   const url = `https://m.stock.naver.com/api/stock/${code}/basic`;
 
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": NAVER_USER_AGENT },
-      cache: "no-store",
-    });
+    const response = await naverFetch(url);
 
     if (!response.ok) return null;
 
@@ -146,10 +276,7 @@ export async function fetchNaverAfterHoursQuote(
   const url = `https://m.stock.naver.com/api/stock/${code}/basic`;
 
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": NAVER_USER_AGENT },
-      cache: "no-store",
-    });
+    const response = await naverFetch(url);
 
     if (!response.ok) return null;
 
@@ -192,10 +319,7 @@ export async function fetchNaverDayOhlc(
   const url = `https://m.stock.naver.com/api/stock/${code}/price`;
 
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": NAVER_USER_AGENT },
-      cache: "no-store",
-    });
+    const response = await naverFetch(url);
 
     if (!response.ok) return null;
 
@@ -246,10 +370,7 @@ async function fetchNaverIntegrationTradingValue(
   const url = `https://m.stock.naver.com/api/stock/${code}/integration`;
 
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": NAVER_USER_AGENT },
-      cache: "no-store",
-    });
+    const response = await naverFetch(url);
 
     if (!response.ok) return null;
 
@@ -278,10 +399,7 @@ export async function fetchNaverIndexQuote(
   const url = `https://m.stock.naver.com/api/index/${indexCode}/basic`;
 
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": NAVER_USER_AGENT },
-      cache: "no-store",
-    });
+    const response = await naverFetch(url);
 
     if (!response.ok) return null;
 
@@ -340,5 +458,73 @@ export async function fetchNaverAfterHoursQuotes(
 
   return results.filter(
     (quote): quote is NaverAfterHoursQuote => quote !== null,
+  );
+}
+
+function normalizeKrSymbolCode(symbolCode: string): string {
+  return symbolCode.replace(/\D/g, "").padStart(6, "0").slice(-6);
+}
+
+async function fetchYahooKrScannerQuote(
+  symbolCode: string,
+): Promise<NaverScannerQuote | null> {
+  const code = normalizeKrSymbolCode(symbolCode);
+  let quote = await fetchYahooQuote(`${code}.KS`, { cache: "no-store" });
+
+  if (!quote) {
+    quote = await fetchYahooQuote(`${code}.KQ`, { cache: "no-store" });
+  }
+
+  if (!quote) return null;
+
+  return {
+    symbol: code,
+    name: quote.name,
+    regularClosePrice: quote.price,
+    afterHoursClosePrice: quote.price,
+    afterHoursChangePercent: 0,
+    regularChangePercent: quote.changePercent,
+    hasAfterHoursTrade: false,
+    tradingValueKrw: 0,
+    tradingValueLabel: "—",
+  };
+}
+
+async function fetchYahooKrIndexQuote(
+  indexCode: "KOSPI" | "KOSDAQ",
+): Promise<NaverIndexQuote | null> {
+  const yahooSymbol = indexCode === "KOSPI" ? "^KS11" : "^KQ11";
+  const quote = await fetchYahooQuote(yahooSymbol, { cache: "no-store" });
+  if (!quote) return null;
+
+  return {
+    symbol: indexCode,
+    name: indexCode,
+    changePercent: quote.changePercent,
+    closePrice: quote.price,
+  };
+}
+
+export async function fetchScannerQuotesWithFallback(
+  symbols: string[],
+): Promise<NaverScannerQuote[]> {
+  const naverQuotes = await fetchNaverScannerQuotes(symbols);
+  if (naverQuotes.length > 0) return naverQuotes;
+
+  const yahooQuotes = await Promise.all(
+    symbols.map((symbol) => fetchYahooKrScannerQuote(symbol)),
+  );
+
+  return yahooQuotes.filter(
+    (quote): quote is NaverScannerQuote => quote !== null,
+  );
+}
+
+export async function fetchIndexQuoteWithFallback(
+  indexCode: "KOSPI" | "KOSDAQ",
+): Promise<NaverIndexQuote | null> {
+  return (
+    (await fetchNaverIndexQuote(indexCode)) ??
+    (await fetchYahooKrIndexQuote(indexCode))
   );
 }

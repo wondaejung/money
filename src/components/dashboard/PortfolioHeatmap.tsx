@@ -78,7 +78,11 @@ export function PortfolioHeatmap() {
             <Badge variant="secondary">네이버 금융 실시간</Badge>
             <Badge variant={fxValid !== false ? "outline" : "destructive"}>
               1 USD = {usdToKrw.toLocaleString(undefined, { maximumFractionDigits: 2 })}원
-              {fxSource === "yahoo" ? "" : " (기본값)"}
+              {fxSource === "naver"
+                ? " (네이버)"
+                : fxSource === "yahoo"
+                  ? ""
+                  : " (기본값)"}
             </Badge>
             {fetchedAt && (
               <span className="text-xs text-muted-foreground">
