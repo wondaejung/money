@@ -106,9 +106,18 @@ function findTotalInfoValue(
 
 function parseMetricValue(value: string | undefined): number | null {
   if (!value || value === "N/A" || value === "-") return null;
-  const normalized = value.replace(/,/g, "").replace(/%/g, "").trim();
+  const normalized = value.replace(/,/g, "").replace(/[^\d.-]/g, "").trim();
+  if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function computeRoeFromEpsBps(
+  eps: number | null,
+  bps: number | null,
+): number | null {
+  if (eps == null || bps == null || bps <= 0) return null;
+  return (eps / bps) * 100;
 }
 
 export interface NaverKrIntegrationMetrics {
@@ -147,9 +156,16 @@ export async function fetchNaverKrFundamentals(
     const infos = integration.totalInfos;
     const per =
       parseMetricValue(findTotalInfoValue(infos, "per")) ??
-      parseMetricValue(findTotalInfoValue(infos, "forwardPer"));
+      parseMetricValue(findTotalInfoValue(infos, "forwardPer")) ??
+      parseMetricValue(findTotalInfoValue(infos, "cnsPer"));
     const pbr = parseMetricValue(findTotalInfoValue(infos, "pbr"));
-    const roe = parseMetricValue(findTotalInfoValue(infos, "roe"));
+    const eps =
+      parseMetricValue(findTotalInfoValue(infos, "eps")) ??
+      parseMetricValue(findTotalInfoValue(infos, "cnsEps"));
+    const bps = parseMetricValue(findTotalInfoValue(infos, "bps"));
+    const roe =
+      parseMetricValue(findTotalInfoValue(infos, "roe")) ??
+      computeRoeFromEpsBps(eps, bps);
     const sectorAvgPer =
       parseMetricValue(findTotalInfoValue(infos, "industryPer")) ??
       parseMetricValue(findTotalInfoValue(infos, "sectorPer")) ??
