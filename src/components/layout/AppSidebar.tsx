@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   BarChart3,
   FileText,
+  Globe,
   LayoutDashboard,
   Target,
   Wallet,
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 export type AppNavKey =
   | "dashboard"
   | "portfolio"
+  | "macro"
   | "report"
   | "predictions"
   | "undervalued";
@@ -34,6 +36,13 @@ const SIDEBAR_LINKS = [
     description: "종목 관리",
     icon: Wallet,
     key: "portfolio" as const,
+  },
+  {
+    href: "/macro",
+    label: "국제 정세",
+    description: "매크로 영향도",
+    icon: Globe,
+    key: "macro" as const,
   },
   {
     href: "/report",

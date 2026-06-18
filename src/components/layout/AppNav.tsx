@@ -3,13 +3,14 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface AppNavProps {
-  current?: "dashboard" | "portfolio" | "report" | "predictions" | "undervalued";
+  current?: "dashboard" | "portfolio" | "macro" | "report" | "predictions" | "undervalued";
 }
 
 export function AppNav({ current }: AppNavProps) {
   const links = [
     { href: "/", label: "포트폴리오", key: "dashboard" as const },
     { href: "/portfolio", label: "종목 관리", key: "portfolio" as const },
+    { href: "/macro", label: "국제 정세", key: "macro" as const },
     { href: "/report", label: "일일 보고서", key: "report" as const },
     {
       href: "/predictions",

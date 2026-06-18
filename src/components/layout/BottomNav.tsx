@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   FileText,
+  Globe,
   LayoutGrid,
   Target,
   Wallet,
@@ -14,10 +15,11 @@ import { cn } from "@/lib/utils";
 
 const MOBILE_NAV = [
   { href: "/", label: "히트맵", icon: LayoutGrid, key: "heatmap" },
-  { href: "/report", label: "일일보고서", icon: FileText, key: "report" },
+  { href: "/macro", label: "국제정세", icon: Globe, key: "macro" },
+  { href: "/report", label: "일일보고", icon: FileText, key: "report" },
   { href: "/predictions", label: "종가베팅", icon: BarChart3, key: "predictions" },
   { href: "/undervalued", label: "저평가", icon: Target, key: "undervalued" },
-  { href: "/portfolio", label: "포트폴리오", icon: Wallet, key: "portfolio" },
+  { href: "/portfolio", label: "설정", icon: Wallet, key: "portfolio" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -34,7 +36,7 @@ export function BottomNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="하단 내비게이션"
     >
-      <div className="mx-auto grid h-16 max-w-lg grid-cols-5">
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-6">
         {MOBILE_NAV.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href);

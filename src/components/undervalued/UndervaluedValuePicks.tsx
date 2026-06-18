@@ -14,8 +14,8 @@ export function UndervaluedValuePicks() {
           저평가 밸류 픽 TOP 10
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-          코스피·코스닥 종목만 대상으로 밸류에이션 지표를 스크리닝하고, AI가
-          밸류 트랩을 걸러낸 뒤 반등 타이밍을 예측합니다.
+          코스피·코스닥 종목만 대상으로 밸류에이션 지표를 스크리닝하고, 재무제표·
+          공시를 바탕으로 AI가 밸류 트랩을 걸러낸 뒤 반등 타이밍을 예측합니다.
         </p>
       </header>
 

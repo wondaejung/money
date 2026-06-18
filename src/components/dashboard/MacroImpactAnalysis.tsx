@@ -40,15 +40,15 @@ export function MacroImpactAnalysis() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">매크로·국제 정세 영향도</h2>
+        <h2 className="text-xl font-semibold">보유 종목별 영향도</h2>
         <p className="text-sm text-muted-foreground">
-          내 보유 종목만 대상으로 밤사이 미국 증시·유가·금리·환율·지정학 이슈
-          민감도를 진단합니다.
+          내 보유 종목만 대상으로 글로벌 이슈 민감도와 대응 힌트를
+          진단합니다.
         </p>
       </div>
 
       {loading && holdings.length === 0 ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {Array.from({ length: 2 }).map((_, index) => (
             <div key={index} className="h-48 animate-pulse rounded-xl bg-muted" />
           ))}
@@ -67,7 +67,7 @@ export function MacroImpactAnalysis() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {macroHoldings.map((holding) => (
             <Card key={holding.id} className="border-border/80">
               <CardHeader className="pb-3">

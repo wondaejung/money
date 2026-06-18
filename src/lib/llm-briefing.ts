@@ -407,6 +407,13 @@ async function callOllama(
 
 export type LlmProvider = "groq" | "gemini" | "ollama" | "openai" | "anthropic";
 
+function isLlmDisabled(): boolean {
+  const flag = process.env.LLM_DISABLED?.trim().toLowerCase();
+  if (flag === "true" || flag === "1") return true;
+  if (flag === "false" || flag === "0") return false;
+  return process.env.NODE_ENV === "development";
+}
+
 function hasCredentialsFor(provider: LlmProvider): boolean {
   switch (provider) {
     case "groq":
@@ -426,6 +433,8 @@ function hasCredentialsFor(provider: LlmProvider): boolean {
 }
 
 export function resolveLlmProvider(): LlmProvider | null {
+  if (isLlmDisabled()) return null;
+
   const explicit = process.env.LLM_PROVIDER as LlmProvider | undefined;
 
   if (explicit && hasCredentialsFor(explicit)) {
