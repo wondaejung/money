@@ -58,11 +58,12 @@ export function useLivePortfolio() {
       return;
     }
 
-    // 첫 로드에만 로딩 표시 — 30초 주기 백그라운드 갱신은 화면 깜빡임 없이 처리
+    // 첫 로드에만 로딩 표시 — 30초 주기 백그라운드 갱신·실패 후 재시도는
+    // 화면 깜빡임 없이 조용히 처리 (에러 배너도 재시도 성공 전까지 유지)
     setState((prev) => ({
       ...prev,
-      loading: prev.fetchedAt === null,
-      error: null,
+      loading: prev.fetchedAt === null && prev.error === null,
+      error: prev.error,
     }));
 
     try {
