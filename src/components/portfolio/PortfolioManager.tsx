@@ -6,6 +6,7 @@ import { Plus, X } from "lucide-react";
 
 import { MacroImpactAnalysis } from "@/components/dashboard/MacroImpactAnalysis";
 import { AddPositionForm } from "@/components/portfolio/AddPositionForm";
+import { DisclosureFeed } from "@/components/portfolio/DisclosureFeed";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { PortfolioBackupTools } from "@/components/portfolio/PortfolioBackupTools";
 import { PortfolioSummary } from "@/components/portfolio/PortfolioSummary";
@@ -100,6 +101,7 @@ export function PortfolioManager() {
         adviceSource={sellAdviceSource}
         llmError={sellAdviceLlmError}
       />
+      <DisclosureFeed positions={positions} />
       <MacroImpactAnalysis />
       <PortfolioBackupTools />
     </div>
