@@ -51,8 +51,8 @@ const SYSTEM_PROMPT = buildJsonSystemPrompt({
 }`,
   rules: [
     "overnightIssues 3개, themeForecasts 3개",
-    "한국어",
-    "usTrigger는 미국 지수·종목·매크로 구체 언급",
+    "한국어, title 25자·summary 80자·usTrigger/krTheme 40자 이내",
+    "usTrigger는 입력된 미국 지수·종목·매크로만 구체 언급 (입력에 없는 수치 창작 금지)",
     "relatedStocks 한국 상장 종목명 2~4개",
   ],
 });

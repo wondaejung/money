@@ -12,14 +12,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatPrice } from "@/lib/format-money";
 import { formatChangePercent, getChangeTextClass } from "@/lib/market-colors";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import type { ResolvedStock } from "@/lib/resolve-stock";
-
-function formatPrice(value: number, currency: string): string {
-  if (currency === "KRW") return `${Math.round(value).toLocaleString()}원`;
-  return `$${value.toFixed(2)}`;
-}
 
 export function AddPositionForm() {
   const addPosition = usePortfolioStore((state) => state.addPosition);

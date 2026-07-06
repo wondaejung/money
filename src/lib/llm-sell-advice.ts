@@ -38,7 +38,8 @@ const SYSTEM_PROMPT = buildJsonSystemPrompt({
     "한국어, 각 필드 1줄·40자 내외",
     "stop_loss·decline_review: llmReason에 당일 등락·분봉 반영, upsideNote는 빈 문자열",
     "take_profit: llmReason 1줄, 추가 상승 여지 있으면 upsideNote에 ↑ 1줄",
-    "입력 holdingId 전부 포함",
+    "입력 holdingId 전부 포함, 입력에 없는 종목·수치 창작 금지",
+    "일반론 금지 — 입력된 등락률·매수가 대비 수치를 근거로 제시",
   ],
 });
 

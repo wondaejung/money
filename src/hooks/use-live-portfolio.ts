@@ -27,6 +27,7 @@ export function useLivePortfolio() {
   const hydrated = usePortfolioHydrated();
   const positions = usePortfolioStore((state) => state.positions);
   const prevPrices = useRef<Record<string, number>>({});
+  const flashTimer = useRef<number | null>(null);
 
   const [state, setState] = useState<LivePortfolioState>({
     holdings: [],
@@ -57,7 +58,12 @@ export function useLivePortfolio() {
       return;
     }
 
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    // 첫 로드에만 로딩 표시 — 30초 주기 백그라운드 갱신은 화면 깜빡임 없이 처리
+    setState((prev) => ({
+      ...prev,
+      loading: prev.fetchedAt === null,
+      error: null,
+    }));
 
     try {
       const response = await fetch("/api/portfolio", {
@@ -100,7 +106,11 @@ export function useLivePortfolio() {
         priceFlash,
       });
 
-      window.setTimeout(() => {
+      if (flashTimer.current !== null) {
+        window.clearTimeout(flashTimer.current);
+      }
+      flashTimer.current = window.setTimeout(() => {
+        flashTimer.current = null;
         setState((prev) => ({ ...prev, priceFlash: {} }));
       }, 1200);
     } catch (error) {
@@ -117,8 +127,17 @@ export function useLivePortfolio() {
 
   useEffect(() => {
     void load();
-    const timer = window.setInterval(() => void load(), REFRESH_MS);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => {
+      // 백그라운드 탭에서는 폴링 중단 (시세 조회 + LLM 호출 낭비 방지)
+      if (document.hidden) return;
+      void load();
+    }, REFRESH_MS);
+    return () => {
+      window.clearInterval(timer);
+      if (flashTimer.current !== null) {
+        window.clearTimeout(flashTimer.current);
+      }
+    };
   }, [load]);
 
   return { ...state, refresh: load, positions };

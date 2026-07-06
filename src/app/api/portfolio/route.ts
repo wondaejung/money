@@ -124,8 +124,6 @@ export async function POST(request: Request) {
     sparklines,
     fx.usdToKrw,
   );
-  const candidates = getSellCandidates(holdings);
-  const sellAdvice = await enrichSellRecommendationsWithLlm(candidates);
 
   if (holdings.length === 0) {
     return NextResponse.json(
@@ -138,6 +136,9 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   }
+
+  const candidates = getSellCandidates(holdings);
+  const sellAdvice = await enrichSellRecommendationsWithLlm(candidates);
 
   return NextResponse.json({
     holdings,

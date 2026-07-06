@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+
+import { RefreshCw } from "lucide-react";
 
 import { MiniSparkline } from "@/components/portfolio/MiniSparkline";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -20,8 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatKrw, formatPrice } from "@/lib/format-money";
 import {
   formatChangePercent,
+  getChangeBorderClass,
   getChangeTextClass,
 } from "@/lib/market-colors";
 import {
@@ -40,26 +43,39 @@ interface HoldingsTableProps {
   error: string | null;
   priceFlash: Record<string, "up" | "down" | null>;
   fetchedAt: string | null;
-  usdToKrw: number;
-  fxSource?: "naver" | "fallback";
   fxValid?: boolean;
 }
 
-function formatKrw(value: number): string {
-  if (Math.abs(value) >= 100_000_000) {
-    return `${(value / 100_000_000).toFixed(2)}억원`;
-  }
-  if (Math.abs(value) >= 10_000) {
-    return `${Math.round(value / 10_000).toLocaleString()}만원`;
-  }
-  return `${Math.round(value).toLocaleString()}원`;
-}
+type SortMode = "value" | "gainPercent";
 
-function formatPrice(value: number, currency: string): string {
-  if (currency === "KRW") {
-    return `${Math.round(value).toLocaleString()}원`;
-  }
-  return `$${value.toFixed(2)}`;
+const SORT_LABELS: Record<SortMode, string> = {
+  value: "평가금액순",
+  gainPercent: "수익률순",
+};
+
+function FilterChip({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3 py-1 text-xs transition-colors",
+        active
+          ? "border-foreground bg-foreground text-background"
+          : "border-border text-muted-foreground hover:bg-muted",
+      )}
+    >
+      {label}
+    </button>
+  );
 }
 
 export function HoldingsTable({
@@ -70,11 +86,12 @@ export function HoldingsTable({
   error,
   priceFlash,
   fetchedAt,
-  usdToKrw,
-  fxSource,
   fxValid,
 }: HoldingsTableProps) {
   const removePosition = usePortfolioStore((state) => state.removePosition);
+  const [sortMode, setSortMode] = useState<SortMode>("value");
+  const [lossOnly, setLossOnly] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const displayRows = useMemo(
     () => mergePortfolioDisplayRows(positions, holdings),
@@ -84,41 +101,38 @@ export function HoldingsTable({
     () => getLiveHoldingsFromRows(displayRows),
     [displayRows],
   );
-  const pendingCount = displayRows.filter((row) => row.kind === "pending").length;
-
+  const pendingRows = displayRows.filter((row) => row.kind === "pending");
   const totalValueKrw = liveHoldings.reduce((sum, h) => sum + h.valueKrw, 0);
-  const totalGainAfterTaxKrw = liveHoldings.reduce(
-    (sum, h) => sum + h.gainAfterTaxKrw,
-    0,
-  );
-  const totalTaxKrw = liveHoldings.reduce((sum, h) => sum + h.estimatedTaxKrw, 0);
-  const totalCommissionKrw = liveHoldings.reduce(
-    (sum, h) => sum + h.totalCommissionKrw,
-    0,
-  );
+
+  const sortedHoldings = useMemo(() => {
+    const filtered = lossOnly
+      ? liveHoldings.filter((h) => h.gainAfterTaxKrw < 0)
+      : liveHoldings;
+
+    return [...filtered].sort((a, b) =>
+      sortMode === "value"
+        ? b.valueKrw - a.valueKrw
+        : b.gainPercentAfterTax - a.gainPercentAfterTax,
+    );
+  }, [liveHoldings, lossOnly, sortMode]);
+
+  const lossCount = liveHoldings.filter((h) => h.gainAfterTaxKrw < 0).length;
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle>보유 종목</CardTitle>
-            <CardDescription>
-              30초마다 갱신 · 토스증권 수수료 0.015%(매수·매도) · 증권거래세
-              0.15% · 대주주(10억↑) 양도세 22%
-            </CardDescription>
-          </div>
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle>보유 종목</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">저장 {positions.length}종목</Badge>
-            {pendingCount > 0 && (
-              <Badge variant="outline">시세 로딩 {pendingCount}</Badge>
+            {pendingRows.length > 0 && (
+              <Badge variant="outline">
+                {loading ? "시세 로딩" : "시세 없음"} {pendingRows.length}
+              </Badge>
             )}
-            <Badge variant={fxValid ? "secondary" : "destructive"}>
-              USD/KRW {usdToKrw.toLocaleString(undefined, { maximumFractionDigits: 2 })}원
-              {fxSource === "naver" ? " (네이버)" : " (기본값)"}
-            </Badge>
             {fetchedAt && (
-              <span className="text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <RefreshCw className="h-3 w-3" aria-hidden />
                 {new Date(fetchedAt).toLocaleTimeString("ko-KR", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -130,7 +144,7 @@ export function HoldingsTable({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {hydrated && positions.length === 0 && (
           <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
             종목은 이 브라우저에만 저장됩니다.{" "}
@@ -138,36 +152,6 @@ export function HoldingsTable({
             <strong className="font-medium text-foreground">127.0.0.1</strong>은
             별도 저장소이니 주소를 통일해 주세요.
           </p>
-        )}
-
-        {liveHoldings.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">총 평가금액 (원화)</p>
-              <p className="text-lg font-semibold">{formatKrw(totalValueKrw)}</p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">
-                세후·수수료 총 손익 (원화)
-              </p>
-              <p
-                className={`text-lg font-semibold ${totalGainAfterTaxKrw >= 0 ? "text-red-500" : "text-blue-500"}`}
-              >
-                {totalGainAfterTaxKrw >= 0 ? "+" : ""}
-                {formatKrw(totalGainAfterTaxKrw)}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">예상 세금·수수료</p>
-              <p className="text-lg font-semibold">
-                {formatKrw(totalTaxKrw + totalCommissionKrw)}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                세금 {formatKrw(totalTaxKrw)} · 수수료{" "}
-                {formatKrw(totalCommissionKrw)}
-              </p>
-            </div>
-          </div>
         )}
 
         {!fxValid && (
@@ -183,201 +167,84 @@ export function HoldingsTable({
           </p>
         )}
 
+        {liveHoldings.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
+              <FilterChip
+                key={mode}
+                active={sortMode === mode}
+                label={SORT_LABELS[mode]}
+                onClick={() => setSortMode(mode)}
+              />
+            ))}
+            <FilterChip
+              active={lossOnly}
+              label={`손실만${lossCount > 0 ? ` ${lossCount}` : ""}`}
+              onClick={() => setLossOnly((prev) => !prev)}
+            />
+          </div>
+        )}
+
         {!hydrated && positions.length === 0 ? (
           <div className="h-48 animate-pulse rounded-lg bg-muted" />
         ) : displayRows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            등록된 종목이 없습니다. 위에서 종목을 추가하세요.
+            등록된 종목이 없습니다. 아래에서 종목을 추가하세요.
           </p>
         ) : (
-          <>
-            <div className="space-y-3 md:hidden">
-              {displayRows.map((row) => {
-                if (row.kind === "pending") {
-                  const position = row.position;
-                  return (
-                    <div
-                      key={position.id}
-                      className="rounded-xl border bg-muted/20 p-4"
-                    >
-                      <div className="mb-3 flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium">{position.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {position.symbol} · {position.market}
-                          </p>
-                        </div>
-                        <Badge variant="outline">시세 로딩</Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground">매수가</p>
-                          <p className="font-mono">
-                            {formatPrice(position.purchasePrice, position.currency)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">수량</p>
-                          <p className="font-mono">{position.shares.toLocaleString()}</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        className="mt-3 min-h-11 w-full text-destructive"
-                        onClick={() => removePosition(position.id)}
-                      >
-                        삭제
-                      </Button>
-                    </div>
-                  );
-                }
-
-                const holding = row.holding;
-                return (
-                  <div key={holding.id} className="rounded-xl border p-4">
-                    <div className="mb-3 flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium">{holding.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {holding.symbol} · {holding.market}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono text-sm font-medium">
-                          {formatPrice(holding.currentPrice, holding.currency)}
-                        </p>
-                        <p
-                          className={`text-xs ${getChangeTextClass(holding.market, holding.changePercent)}`}
-                        >
-                          {formatChangePercent(holding.changePercent)}
-                        </p>
-                      </div>
-                    </div>
-                    <MiniSparkline
-                      data={holding.sparkline}
-                      market={holding.market}
-                    />
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground">세후 손익</p>
-                        <p
-                          className={`font-mono font-medium ${getChangeTextClass(holding.market, holding.gainAfterTax)}`}
-                        >
-                          {holding.gainAfterTax >= 0 ? "+" : ""}
-                          {formatPrice(holding.gainAfterTax, holding.currency)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">원화 평가</p>
-                        <p className="font-mono font-medium">
-                          {formatKrw(holding.valueKrw)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">매수가</p>
-                        <p className="font-mono">
-                          {formatPrice(holding.purchasePrice, holding.currency)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">수량</p>
-                        <p className="font-mono">{holding.shares.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      className="mt-3 min-h-11 w-full text-destructive"
-                      onClick={() => removePosition(holding.id)}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
+          <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>종목</TableHead>
-                  <TableHead>당일 흐름</TableHead>
-                  <TableHead className="text-right">현재가</TableHead>
-                  <TableHead className="text-right">매수가</TableHead>
-                  <TableHead className="text-right">수량</TableHead>
-                  <TableHead className="text-right">세전 손익</TableHead>
-                  <TableHead className="text-right">세금·수수료</TableHead>
-                  <TableHead className="text-right">세후·수수료 손익</TableHead>
-                  <TableHead className="text-right">원화 평가</TableHead>
-                  <TableHead />
+                  <TableHead className="w-[34%]">종목</TableHead>
+                  <TableHead className="text-right">현재가·등락</TableHead>
+                  <TableHead className="text-right">세후 손익</TableHead>
+                  <TableHead className="text-right">평가·비중</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayRows.map((row) => {
-                  if (row.kind === "pending") {
-                    const position = row.position;
-                    return (
-                      <TableRow key={position.id} className="bg-muted/20">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{position.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {position.symbol} · {position.market}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs text-muted-foreground">
-                            {loading ? "로딩…" : "—"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                          {loading ? "시세 로딩 중" : "시세 없음"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {formatPrice(position.purchasePrice, position.currency)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {position.shares.toLocaleString()}
-                        </TableCell>
-                        <TableCell colSpan={3} className="text-right text-xs text-muted-foreground">
-                          실시간 손익 계산 대기
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                          —
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => removePosition(position.id)}
-                          >
-                            삭제
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
+                {sortedHoldings.map((holding) => {
+                  const expanded = expandedId === holding.id;
+                  const weightPercent =
+                    totalValueKrw > 0
+                      ? (holding.valueKrw / totalValueKrw) * 100
+                      : 0;
+                  const gainPositive = holding.gainAfterTax >= 0;
 
-                  const holding = row.holding;
                   return (
-                    <TableRow key={holding.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{holding.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {holding.symbol} · {holding.market}
-                          </p>
-                        </div>
+                    <TableRow
+                      key={holding.id}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setExpandedId(expanded ? null : holding.id)
+                      }
+                    >
+                      <TableCell
+                        className={cn(
+                          "border-l-[3px] py-2.5",
+                          getChangeBorderClass(
+                            holding.market,
+                            holding.gainAfterTax,
+                          ),
+                        )}
+                      >
+                        <p className="truncate font-medium">{holding.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {holding.symbol} · {holding.shares.toLocaleString()}주
+                        </p>
+                        {expanded && (
+                          <div
+                            className="mt-3 space-y-3"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <MiniSparkline
+                              data={holding.sparkline}
+                              market={holding.market}
+                            />
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell>
-                        <MiniSparkline
-                          data={holding.sparkline}
-                          market={holding.market}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-2.5 text-right align-top">
                         <div
                           className={cn(
                             "rounded px-1 transition-colors duration-500",
@@ -399,62 +266,164 @@ export function HoldingsTable({
                             {formatPrice(holding.currentPrice, holding.currency)}
                           </p>
                           <p
-                            className={`text-xs ${getChangeTextClass(holding.market, holding.changePercent)}`}
+                            className={cn(
+                              "text-xs",
+                              getChangeTextClass(
+                                holding.market,
+                                holding.changePercent,
+                              ),
+                            )}
                           >
                             {formatChangePercent(holding.changePercent)}
                           </p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {formatPrice(holding.purchasePrice, holding.currency)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {holding.shares.toLocaleString()}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-mono text-sm ${getChangeTextClass(holding.market, holding.gainAmount)}`}
-                      >
-                        {holding.gainAmount >= 0 ? "+" : ""}
-                        {formatPrice(holding.gainAmount, holding.currency)}
-                        <p className="text-xs text-muted-foreground">
-                          {formatChangePercent(holding.gainPercent)}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                        {formatPrice(
-                          holding.estimatedTax + holding.totalCommission,
-                          holding.currency,
+                        {expanded && (
+                          <div className="mt-3 text-xs text-muted-foreground">
+                            <p>매수가</p>
+                            <p className="font-mono text-sm text-foreground">
+                              {formatPrice(
+                                holding.purchasePrice,
+                                holding.currency,
+                              )}
+                            </p>
+                          </div>
                         )}
                       </TableCell>
-                      <TableCell
-                        className={`text-right font-mono text-sm font-medium ${getChangeTextClass(holding.market, holding.gainAfterTax)}`}
-                      >
-                        {holding.gainAfterTax >= 0 ? "+" : ""}
-                        {formatPrice(holding.gainAfterTax, holding.currency)}
-                        <p className="text-xs text-muted-foreground">
+                      <TableCell className="py-2.5 text-right align-top">
+                        <p
+                          className={cn(
+                            "font-mono text-sm font-medium",
+                            getChangeTextClass(
+                              holding.market,
+                              holding.gainAfterTax,
+                            ),
+                          )}
+                        >
+                          {gainPositive ? "+" : ""}
+                          {formatPrice(holding.gainAfterTax, holding.currency)}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-xs",
+                            getChangeTextClass(
+                              holding.market,
+                              holding.gainAfterTax,
+                            ),
+                          )}
+                        >
                           {formatChangePercent(holding.gainPercentAfterTax)}
                         </p>
+                        {expanded && (
+                          <div className="mt-3 text-xs text-muted-foreground">
+                            <p>세전 손익</p>
+                            <p
+                              className={cn(
+                                "font-mono text-sm",
+                                getChangeTextClass(
+                                  holding.market,
+                                  holding.gainAmount,
+                                ),
+                              )}
+                            >
+                              {holding.gainAmount >= 0 ? "+" : ""}
+                              {formatPrice(
+                                holding.gainAmount,
+                                holding.currency,
+                              )}{" "}
+                              ({formatChangePercent(holding.gainPercent)})
+                            </p>
+                            <p className="mt-1.5">세금·수수료</p>
+                            <p className="font-mono text-sm text-foreground">
+                              {formatPrice(
+                                holding.estimatedTax + holding.totalCommission,
+                                holding.currency,
+                              )}
+                            </p>
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {formatKrw(holding.valueKrw)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => removePosition(holding.id)}
-                        >
-                          삭제
-                        </Button>
+                      <TableCell className="py-2.5 text-right align-top">
+                        <p className="font-mono text-sm">
+                          {formatKrw(holding.valueKrw)}
+                        </p>
+                        <div className="mt-1.5 ml-auto h-1 w-full max-w-24 rounded-full bg-muted">
+                          <div
+                            className="h-1 rounded-full bg-muted-foreground"
+                            style={{
+                              width: `${Math.max(Math.min(weightPercent, 100), 2)}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {weightPercent.toFixed(1)}%
+                        </p>
+                        {expanded && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="mt-2 text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removePosition(holding.id);
+                            }}
+                          >
+                            삭제
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
                 })}
+
+                {!lossOnly &&
+                  pendingRows.map((row) => {
+                    if (row.kind !== "pending") return null;
+                    const position = row.position;
+
+                    return (
+                      <TableRow key={position.id} className="bg-muted/20">
+                        <TableCell className="border-l-[3px] border-l-muted py-2.5">
+                          <p className="truncate font-medium">{position.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {position.symbol} ·{" "}
+                            {position.shares.toLocaleString()}주
+                          </p>
+                        </TableCell>
+                        <TableCell
+                          colSpan={2}
+                          className="py-2.5 text-right text-xs text-muted-foreground"
+                        >
+                          {loading ? "시세 로딩 중…" : "시세 없음"} · 매수가{" "}
+                          {formatPrice(position.purchasePrice, position.currency)}
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => removePosition(position.id)}
+                          >
+                            삭제
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
               </TableBody>
             </Table>
-            </div>
-          </>
+          </div>
+        )}
+
+        {sortedHoldings.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            행을 누르면 매수가 · 세전 손익 · 세금 내역 · 당일 차트가 펼쳐집니다
+          </p>
+        )}
+
+        {lossOnly && sortedHoldings.length === 0 && liveHoldings.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            세후·수수료 기준 손실 종목이 없습니다.
+          </p>
         )}
       </CardContent>
     </Card>

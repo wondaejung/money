@@ -31,8 +31,8 @@ const SYSTEM_PROMPT = buildJsonSystemPrompt({
   rules: [
     "facts 정확히 3개",
     `각 fact는 공백 포함 ${MAX_FACT_CHARS}자 이내(초과 금지)`,
-    "headline 한 줄, 시장을 뒤흔든 최대 이슈",
-    "portfolioImpact 한 줄, 보유 종목명을 자연스럽게 언급(보유 없으면 일반 시장 영향)",
+    "headline 한 줄·35자 이내, 시장을 뒤흔든 최대 이슈",
+    "portfolioImpact 한 줄·80자 이내, 보유 종목명을 자연스럽게 언급(보유 없으면 일반 시장 영향)",
     "입력 데이터에 없는 종목·수치 창작 금지",
   ],
 });

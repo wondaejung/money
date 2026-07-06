@@ -1,13 +1,13 @@
-"use client";
-
-import { Area, AreaChart, YAxis } from "recharts";
-
 import type { Market } from "@/types/market";
 
 interface MiniSparklineProps {
   data: number[];
   market: Market;
 }
+
+const WIDTH = 112;
+const HEIGHT = 48;
+const PADDING_Y = 4;
 
 export function MiniSparkline({ data, market }: MiniSparklineProps) {
   if (data.length < 2) {
@@ -30,20 +30,38 @@ export function MiniSparkline({ data, market }: MiniSparklineProps) {
         ? "#10b981"
         : "#f43f5e";
 
-  const chartData = data.map((price, index) => ({ index, price }));
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const stepX = WIDTH / (data.length - 1);
+  const innerHeight = HEIGHT - PADDING_Y * 2;
+
+  const points = data.map((price, index) => {
+    const x = index * stepX;
+    const y = PADDING_Y + innerHeight * (1 - (price - min) / range);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const linePath = `M${points.join(" L")}`;
+  const areaPath = `${linePath} L${WIDTH},${HEIGHT} L0,${HEIGHT} Z`;
 
   return (
-    <AreaChart width={112} height={48} data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-      <YAxis domain={["dataMin", "dataMax"]} hide width={0} />
-      <Area
-        type="monotone"
-        dataKey="price"
+    <svg
+      width={WIDTH}
+      height={HEIGHT}
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      <path d={areaPath} fill={stroke} fillOpacity={0.15} />
+      <path
+        d={linePath}
+        fill="none"
         stroke={stroke}
-        fill={stroke}
-        fillOpacity={0.15}
         strokeWidth={1.5}
-        isAnimationActive={false}
+        strokeLinejoin="round"
+        strokeLinecap="round"
       />
-    </AreaChart>
+    </svg>
   );
 }

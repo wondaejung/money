@@ -10,6 +10,16 @@ export function getChangeTextClass(market: Market, changePercent: number): strin
   return isUp ? "text-emerald-500" : "text-rose-500";
 }
 
+export function getChangeBorderClass(market: Market, changePercent: number): string {
+  const isUp = changePercent >= 0;
+
+  if (market === "KR") {
+    return isUp ? "border-l-red-500" : "border-l-blue-500";
+  }
+
+  return isUp ? "border-l-emerald-500" : "border-l-rose-500";
+}
+
 export function getTreemapFillColor(market: Market, gainPercent: number): string {
   const magnitude = Math.min(Math.abs(gainPercent) / 20, 1);
   const intensity = 0.35 + magnitude * 0.45;

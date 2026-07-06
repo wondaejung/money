@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
+
+import { Plus, X } from "lucide-react";
+
 import { MacroImpactAnalysis } from "@/components/dashboard/MacroImpactAnalysis";
 import { AddPositionForm } from "@/components/portfolio/AddPositionForm";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
-import { LossHoldingsSummary } from "@/components/portfolio/LossHoldingsSummary";
 import { PortfolioBackupTools } from "@/components/portfolio/PortfolioBackupTools";
+import { PortfolioSummary } from "@/components/portfolio/PortfolioSummary";
 import { SellRecommendations } from "@/components/portfolio/SellRecommendations";
 import { Button } from "@/components/ui/button";
 import { usePortfolioHydrated } from "@/hooks/use-portfolio-hydrated";
@@ -12,6 +16,7 @@ import { useLivePortfolio } from "@/hooks/use-live-portfolio";
 
 export function PortfolioManager() {
   const hydrated = usePortfolioHydrated();
+  const [showAddForm, setShowAddForm] = useState(false);
   const {
     holdings,
     sellRecommendations,
@@ -28,20 +33,19 @@ export function PortfolioManager() {
     positions,
   } = useLivePortfolio();
 
+  const addFormVisible =
+    showAddForm || (hydrated && positions.length === 0);
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-4 sm:gap-8 sm:px-6 sm:py-8">
-      <header className="space-y-2">
+      <header className="space-y-1">
         <p className="text-sm font-medium text-muted-foreground">
           Portfolio Manager
         </p>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">내 포트폴리오</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-          매수가와 수량을 입력하면 실시간 시세·당일 차트 흐름·판매 추천을
-          확인할 수 있습니다.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          내 포트폴리오
+        </h1>
       </header>
-
-      <MacroImpactAnalysis />
 
       {error && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
@@ -52,7 +56,14 @@ export function PortfolioManager() {
         </div>
       )}
 
-      <AddPositionForm />
+      <PortfolioSummary
+        holdings={holdings}
+        hydrated={hydrated}
+        usdToKrw={usdToKrw}
+        fxSource={fxSource}
+        fxValid={fxValid}
+      />
+
       <HoldingsTable
         positions={positions}
         holdings={holdings}
@@ -61,16 +72,35 @@ export function PortfolioManager() {
         error={error}
         priceFlash={priceFlash}
         fetchedAt={fetchedAt}
-        usdToKrw={usdToKrw}
-        fxSource={fxSource}
         fxValid={fxValid}
       />
-      <LossHoldingsSummary holdings={holdings} />
+
+      <div className="space-y-4">
+        {positions.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => setShowAddForm((prev) => !prev)}
+          >
+            {addFormVisible ? (
+              <>
+                <X className="h-4 w-4" aria-hidden /> 닫기
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" aria-hidden /> 종목 추가
+              </>
+            )}
+          </Button>
+        )}
+        {addFormVisible && <AddPositionForm />}
+      </div>
+
       <SellRecommendations
         recommendations={sellRecommendations}
         adviceSource={sellAdviceSource}
         llmError={sellAdviceLlmError}
       />
+      <MacroImpactAnalysis />
       <PortfolioBackupTools />
     </div>
   );
