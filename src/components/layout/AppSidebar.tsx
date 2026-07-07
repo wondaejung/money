@@ -4,6 +4,7 @@ import {
   FileText,
   Globe,
   LayoutDashboard,
+  Mic,
   Target,
   Wallet,
 } from "lucide-react";
@@ -16,7 +17,8 @@ export type AppNavKey =
   | "macro"
   | "report"
   | "predictions"
-  | "undervalued";
+  | "undervalued"
+  | "expert";
 
 interface AppSidebarProps {
   current?: AppNavKey;
@@ -64,6 +66,13 @@ const SIDEBAR_LINKS = [
     description: "저평가 스크리닝",
     icon: Target,
     key: "undervalued" as const,
+  },
+  {
+    href: "/expert",
+    label: "전문가 의견",
+    description: "김민수 팀장 요약",
+    icon: Mic,
+    key: "expert" as const,
   },
 ];
 

@@ -10,6 +10,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Vercel Cron 호출 경로 — 라우트 내부에서 CRON_SECRET으로 검증
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   if (pathname === "/login") {
     if (isAuthConfigured()) {
       const session = request.cookies.get(AUTH_COOKIE_NAME)?.value;

@@ -7,6 +7,7 @@ import {
   FileText,
   Globe,
   LayoutGrid,
+  Mic,
   Target,
   Wallet,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const MOBILE_NAV = [
   { href: "/report", label: "일일보고", icon: FileText, key: "report" },
   { href: "/predictions", label: "종가베팅", icon: BarChart3, key: "predictions" },
   { href: "/undervalued", label: "저평가", icon: Target, key: "undervalued" },
+  { href: "/expert", label: "전문가", icon: Mic, key: "expert" },
   { href: "/portfolio", label: "설정", icon: Wallet, key: "portfolio" },
 ] as const;
 
@@ -36,7 +38,7 @@ export function BottomNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="하단 내비게이션"
     >
-      <div className="mx-auto grid h-16 max-w-lg grid-cols-6">
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-7">
         {MOBILE_NAV.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href);
