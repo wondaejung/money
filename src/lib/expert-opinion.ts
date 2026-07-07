@@ -26,10 +26,14 @@ const FETCH_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36",
 };
 
-interface FoundVideo {
+export interface FoundVideo {
   videoId: string;
   title: string;
   publishedText: string;
+}
+
+export interface ExpertVideoInput extends FoundVideo {
+  transcript: string | null;
 }
 
 const RECENT_MAX_DAYS = 7;
@@ -277,9 +281,7 @@ export function parseLlmExpertContent(raw: unknown): LlmExpertContent | null {
   };
 }
 
-function buildUserPrompt(
-  videos: Array<FoundVideo & { transcript: string | null }>,
-): string {
+function buildUserPrompt(videos: ExpertVideoInput[]): string {
   const blocks = videos.map((video) => {
     const caption = video.transcript
       ? `CAPTION ${video.transcript}`
@@ -313,6 +315,17 @@ export async function generateExpertOpinion(): Promise<ExpertOpinionReport> {
     })),
   );
 
+  return buildAndStoreReport(withTranscripts);
+}
+
+/**
+ * 수집이 끝난 영상(자막 포함 가능)을 요약해 저장한다.
+ * Vercel IP는 유튜브 자막이 차단되므로, 로컬 PC가 자막을 수집해
+ * ingest 라우트로 보내는 경우에도 이 함수를 공유한다.
+ */
+export async function buildAndStoreReport(
+  withTranscripts: ExpertVideoInput[],
+): Promise<ExpertOpinionReport> {
   let items: LlmExpertItem[] | null = null;
   let dailyTakeaway = "";
   let summarySource: "llm" | "rule" = "rule";
