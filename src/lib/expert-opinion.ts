@@ -32,6 +32,17 @@ interface FoundVideo {
   publishedText: string;
 }
 
+const RECENT_MAX_DAYS = 7;
+
+function isRecentVideo(publishedText: string): boolean {
+  if (!publishedText) return true;
+  if (/(분|시간)\s*전/.test(publishedText)) return true;
+  const days = publishedText.match(/(\d+)일\s*전/);
+  if (days) return Number(days[1]) <= RECENT_MAX_DAYS;
+  // "N주 전", "N개월 전", "N년 전" 등은 제외
+  return false;
+}
+
 function collectVideoRenderers(node: unknown, out: unknown[]): void {
   if (!node || typeof node !== "object") return;
 
@@ -87,16 +98,15 @@ export async function searchExpertVideos(): Promise<FoundVideo[]> {
     const ownerId =
       vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId;
 
+    const publishedText = vr.publishedTimeText?.simpleText ?? "";
+
     if (!videoId || !title) continue;
     if (ownerId !== CHANNEL_ID) continue;
     if (!title.includes(EXPERT_NAME)) continue;
+    if (!isRecentVideo(publishedText)) continue;
     if (videos.some((video) => video.videoId === videoId)) continue;
 
-    videos.push({
-      videoId,
-      title,
-      publishedText: vr.publishedTimeText?.simpleText ?? "",
-    });
+    videos.push({ videoId, title, publishedText });
 
     if (videos.length >= MAX_VIDEOS) break;
   }
